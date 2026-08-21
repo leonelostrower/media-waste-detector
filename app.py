@@ -33,11 +33,13 @@ st.html(
     :root {
       --mf-plum: #4F24EE;
       --mf-plum-dark: #3B11D5;
-      --mf-plum-50: #F7F6FE;
+      --mf-plum-light: #F7F6FE;
       --mf-text: #3C3C3E;
-      --mf-muted: #787C96;
+      --mf-text-muted: #787C96;
       --mf-border: rgba(0, 0, 0, 0.12);
-      --mf-border-soft: rgba(0, 0, 0, 0.08);
+      --mf-border-strong: rgba(0, 0, 0, 0.19);
+      --mf-shadow-2: 0px 2px 7px 0px rgba(0, 0, 0, 0.1);
+      --mf-shadow-4: 0px 4px 16px 0px rgba(0, 0, 0, 0.1);
     }
     html, body, .stApp, [class*="st-"] {
       font-family: 'Helvetica Now for Monks', Helvetica, Arial, sans-serif;
@@ -46,72 +48,167 @@ st.html(
     header[data-testid="stHeader"] { background: transparent; height: 0; }
     .block-container {
       max-width: 1160px;
-      padding: 1.75rem 1.5rem 4rem;
+      padding: 2rem 1.5rem 4rem;
     }
-    h1 { font-size: 36px !important; line-height: 44px !important; letter-spacing: -0.04em !important; font-weight: 400 !important; margin: 0 0 4px !important; }
-    h2 { font-size: 24px !important; line-height: 32px !important; letter-spacing: -0.04em !important; font-weight: 400 !important; margin: 0 0 4px !important; padding: 0 !important; }
-    h3 { font-size: 20px !important; line-height: 28px !important; letter-spacing: -0.04em !important; font-weight: 500 !important; margin: 0 0 4px !important; padding: 0 !important; }
-    p, li, label, .stMarkdown { letter-spacing: -0.01em; }
-
-    [data-testid="stVerticalBlockBorderWrapper"] {
-      border: 1px solid var(--mf-border-soft) !important;
-      border-radius: 16px;
-      box-shadow: 0 2px 7px rgba(0, 0, 0, 0.06);
-      background: #FFFFFF;
+    h1 { 
+      font-size: 36px !important; 
+      line-height: 44px !important; 
+      letter-spacing: -0.04em !important; 
+      font-weight: 400 !important; 
+      margin: 0 0 8px !important; 
+      color: var(--mf-text) !important;
     }
-    [data-testid="stMetric"] {
-      border-radius: 12px;
-      border-color: var(--mf-border-soft) !important;
+    h2 { 
+      font-size: 24px !important; 
+      line-height: 32px !important; 
+      letter-spacing: -0.04em !important; 
+      font-weight: 400 !important; 
+      margin: 0 0 8px !important; 
+      padding: 0 !important; 
+      color: var(--mf-text) !important;
     }
-    [data-testid="stMetricLabel"] p {
-      font-size: 12px !important;
-      font-weight: 500;
-      color: var(--mf-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+    h3 { 
+      font-size: 20px !important; 
+      line-height: 28px !important; 
+      letter-spacing: -0.04em !important; 
+      font-weight: 500 !important; 
+      margin: 0 0 8px !important; 
+      padding: 0 !important;
+      color: var(--mf-text) !important;
     }
-    [data-testid="stMetricValue"] { font-size: 28px; letter-spacing: -0.04em; }
-
-    .stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {
-      border-radius: 12px;
-      min-height: 40px;
-      font-weight: 500;
-      letter-spacing: -0.01em;
-      transition: all 0.2s ease;
-    }
-    .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primaryFormSubmit"] {
-      background: var(--mf-plum);
-      border-color: var(--mf-plum);
-      color: #FFFFFF;
-    }
-    .stButton > button[kind="primary"]:hover, .stFormSubmitButton > button[kind="primaryFormSubmit"]:hover {
-      background: var(--mf-plum-dark);
-      border-color: var(--mf-plum-dark);
-    }
-    .stButton > button[kind="secondary"] {
-      border-color: rgba(0, 0, 0, 0.19);
+    p, li, label, .stMarkdown { 
+      letter-spacing: -0.01em; 
       color: var(--mf-text);
     }
-    .stButton > button[kind="secondary"]:hover {
-      border-color: var(--mf-plum);
-      color: var(--mf-plum);
+    .stCaption { color: var(--mf-text-muted) !important; }
+
+    [data-testid="stVerticalBlockBorderWrapper"] {
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      border-radius: 16px !important;
+      box-shadow: var(--mf-shadow-2) !important;
+      background: #FFFFFF !important;
+      padding: 24px !important;
+      min-height: auto !important;
+      display: flex !important;
+      flex-direction: column !important;
     }
-
-    [data-baseweb="tab-list"] { gap: 28px; border-bottom: 1px solid var(--mf-border); }
-    [data-baseweb="tab"] { height: 46px; padding: 0 !important; letter-spacing: -0.01em; }
-    [data-baseweb="tab"][aria-selected="true"] { color: var(--mf-plum) !important; }
-    [data-baseweb="tab-highlight"] { background: var(--mf-plum) !important; }
-
-    textarea, input, [data-testid="stFileUploaderDropzone"] {
+    [data-testid="stVerticalBlockBorderWrapper"] > div {
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    [data-testid="stMetric"] {
       border-radius: 12px !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      box-shadow: var(--mf-shadow-2) !important;
+      padding: 16px !important;
     }
+    [data-testid="stMetricLabel"] p {
+      font-size: 11px !important;
+      font-weight: 500;
+      color: var(--mf-text-muted) !important;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px !important;
+    }
+    [data-testid="stMetricValue"] { 
+      font-size: 28px !important;
+      font-weight: 500 !important;
+      letter-spacing: -0.04em; 
+      color: var(--mf-text) !important;
+    }
+
+    .stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {
+      border-radius: 12px !important;
+      min-height: 40px !important;
+      font-weight: 500 !important;
+      font-size: 14px !important;
+      letter-spacing: -0.01em !important;
+      transition: all 0.2s ease !important;
+      border: none !important;
+    }
+    .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primaryFormSubmit"] {
+      background: var(--mf-plum) !important;
+      border: none !important;
+      color: #FFFFFF !important;
+    }
+    .stButton > button[kind="primary"]:hover, .stFormSubmitButton > button[kind="primaryFormSubmit"]:hover {
+      background: var(--mf-plum-dark) !important;
+    }
+    .stButton > button[kind="secondary"] {
+      border: 1px solid var(--mf-border-strong) !important;
+      color: var(--mf-text) !important;
+      background: transparent !important;
+    }
+    .stButton > button[kind="secondary"]:hover {
+      border-color: var(--mf-plum) !important;
+      color: var(--mf-plum) !important;
+    }
+    .stButton > button:disabled {
+      opacity: 0.5 !important;
+      cursor: not-allowed !important;
+    }
+    .stButton {
+      width: 100% !important;
+    }
+    .stButton > button {
+      width: 100% !important;
+      max-width: 100% !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+    }
+
+    [data-baseweb="tab-list"] { 
+      gap: 28px !important;
+      border-bottom: 1px solid var(--mf-border) !important;
+      padding: 0 !important;
+    }
+    [data-baseweb="tab"] { 
+      height: 44px !important;
+      padding: 0 !important;
+      letter-spacing: -0.01em !important;
+      color: var(--mf-text-muted) !important;
+      font-weight: 500 !important;
+    }
+    [data-baseweb="tab"][aria-selected="true"] { 
+      color: var(--mf-plum) !important;
+    }
+    [data-baseweb="tab-highlight"] { 
+      background: var(--mf-plum) !important;
+      height: 3px !important;
+    }
+
+    textarea, input, [data-testid="stTextInputWrapper"] input {
+      border-radius: 12px !important;
+      border: 1px solid var(--mf-border) !important;
+      background: #FFFFFF !important;
+      color: var(--mf-text) !important;
+      font-family: 'Helvetica Now for Monks', Helvetica, Arial, sans-serif !important;
+    }
+    textarea:focus, input:focus, [data-testid="stTextInputWrapper"] input:focus {
+      border-color: var(--mf-plum) !important;
+      box-shadow: 0 0 0 2px rgba(79, 36, 238, 0.1) !important;
+    }
+    
     [data-testid="stFileUploaderDropzone"] {
-      background: var(--mf-plum-50);
-      border: 1px dashed rgba(79, 36, 238, 0.35);
-      padding: 1rem 1.25rem;
+      background: var(--mf-plum-light) !important;
+      border: 2px dashed rgba(79, 36, 238, 0.35) !important;
+      border-radius: 12px !important;
+      padding: 16px 20px !important;
     }
-    [data-testid="stAlertContainer"] { border-radius: 12px; }
-    [data-testid="stAlertContainer"] p { letter-spacing: -0.01em; }
+    [data-testid="stAlertContainer"] { 
+      border-radius: 12px !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    [data-testid="stAlertContainer"] p, [data-testid="stAlertContainer"] span { 
+      letter-spacing: -0.01em !important;
+    }
+    
+    hr {
+      border: none !important;
+      border-top: 1px solid var(--mf-border) !important;
+      margin: 12px 0 !important;
+    }
 
     .mf-topbar {
       display: flex;
@@ -128,21 +225,34 @@ st.html(
       color: #FFFFFF;
       display: flex; align-items: center; justify-content: center;
       font-size: 16px; font-weight: 500; letter-spacing: -0.01em;
+      flex-shrink: 0;
     }
-    .mf-wordmark { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; color: var(--mf-text); }
+    .mf-wordmark { 
+      font-size: 16px; 
+      font-weight: 500; 
+      letter-spacing: -0.01em; 
+      color: var(--mf-text); 
+      flex: 1;
+    }
     .mf-eyebrow {
-      font-size: 12px; font-weight: 500; letter-spacing: 0.08em;
-      text-transform: uppercase; color: var(--mf-muted);
+      font-size: 11px; 
+      font-weight: 500; 
+      letter-spacing: 0.08em;
+      text-transform: uppercase; 
+      color: var(--mf-text-muted);
+      display: block;
+      margin-bottom: 4px;
     }
     .mf-avatar {
       width: 40px; height: 40px;
       border-radius: 12px;
-      background: var(--mf-plum-50);
+      background: var(--mf-plum-light);
       border: 1px solid rgba(79, 36, 238, 0.18);
       color: var(--mf-plum);
       display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: 500;
-      margin-bottom: 4px;
+      font-size: 13px; 
+      font-weight: 500;
+      flex-shrink: 0;
     }
     </style>
     """
@@ -197,11 +307,10 @@ def render_topbar(show_back: bool = False) -> None:
     with action:
         if show_back:
             st.button(
-                "Volver a clientes",
-                icon=":material/arrow_back:",
+                "← Volver a clientes",
                 on_click=navigate,
                 args=("home",),
-                width="stretch",
+                use_container_width=True,
             )
 
 
@@ -220,13 +329,13 @@ def render_client_card(client: dict) -> None:
         with st.container(horizontal=True, gap="small"):
             for key, label in labels.items():
                 st.badge(label, color="green" if sources.get(key) else "gray")
+        st.divider()
         st.button(
-            "Abrir workspace",
-            icon=":material/arrow_forward:",
+            "Abrir workspace →",
             key=f"open_{client['id']}",
             on_click=navigate,
             args=("workspace", client["id"]),
-            width="stretch",
+            use_container_width=True,
         )
 
 
@@ -239,12 +348,11 @@ def render_home() -> None:
         st.caption("Workspaces activos, integraciones y contexto de negocio.")
     with action:
         st.button(
-            "Nuevo cliente",
-            icon=":material/add:",
+            "+ Nuevo cliente",
             type="primary",
             on_click=navigate,
             args=("new_client",),
-            width="stretch",
+            use_container_width=True,
         )
 
     st.space("small")
@@ -280,7 +388,6 @@ def render_new_client() -> None:
             submitted = st.form_submit_button(
                 "Crear workspace",
                 type="primary",
-                icon=":material/add_business:",
             )
         if submitted:
             if not name.strip():
@@ -305,7 +412,6 @@ def connect_source(client_id: str, source: str, label: str) -> None:
         time.sleep(0.9)
     dm.set_source_connected(client_id, source, True)
     st.toast("Conexión establecida", icon=":material/check_circle:")
-    st.rerun()
 
 
 def render_source_card(
@@ -317,24 +423,27 @@ def render_source_card(
 ) -> None:
     connected = bool(client.get("sources", {}).get(source))
     with st.container(border=True):
-        if connected:
-            st.badge("Conectado", icon=":material/check:", color="green")
-        else:
-            st.badge("Requerido" if required else "Opcional", color="orange" if required else "gray")
-        st.markdown(f"**{title}**")
-        st.caption(shorten(description, 72))
-        if connected:
-            st.metric("Entidades", len(dm.read_source(source)))
-        else:
-            st.space("small")
-            if st.button(
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            if connected:
+                st.badge("Conectado", icon=":material/check:", color="green")
+            else:
+                st.badge("Requerido" if required else "Opcional", color="orange" if required else "gray")
+            st.markdown(f"**{title}**")
+            st.caption(shorten(description, 72))
+        with col2:
+            if connected:
+                st.metric("Entidades", len(dm.read_source(source)))
+        
+        if not connected:
+            st.divider()
+            st.button(
                 "Conectar",
                 key=f"connect_{source}",
                 type="primary" if required else "secondary",
-                icon=":material/cable:",
-                width="stretch",
-            ):
-                connect_source(client["id"], source, title)
+                use_container_width=True,
+                on_click=lambda: connect_source(client["id"], source, title),
+            )
 
 
 def render_data_sources(client: dict) -> None:
@@ -379,17 +488,21 @@ def render_media_plan(client: dict) -> None:
     editor, side = st.columns([3, 2], gap="medium")
     with editor:
         with st.container(border=True):
+            st.markdown("**Estrategia de medios y objetivos**")
+            st.caption("Pega el plan o importa un documento.")
             st.text_area(
-                "Estrategia de medios y objetivos",
+                "Plan",
                 key=plan_key,
-                height=260,
+                height=220,
                 placeholder="Objetivos del trimestre, lineamientos de inversión y criterios de optimización.",
+                label_visibility="collapsed",
             )
+            st.space("small")
             if st.button(
-                "Guardar contexto",
-                icon=":material/save:",
+                "💾 Guardar contexto",
                 type="primary",
                 disabled=not bool(st.session_state[plan_key].strip()),
+                use_container_width=True,
             ):
                 dm.update_client(client["id"], media_plan=st.session_state[plan_key].strip())
                 st.toast("Contexto actualizado", icon=":material/check_circle:")
@@ -397,12 +510,13 @@ def render_media_plan(client: dict) -> None:
     with side:
         with st.container(border=True):
             st.markdown("**Importar documento**")
-            st.caption("Formatos TXT o PDF.")
+            st.caption("TXT o PDF")
             uploaded = st.file_uploader(
-                "Media plan",
+                label="Archivo",
                 type=["txt", "pdf"],
                 key=f"plan_file_{client['id']}",
                 label_visibility="collapsed",
+                accept_multiple_files=False,
             )
             if uploaded and st.session_state.get("loaded_plan_file") != uploaded.name:
                 try:
@@ -411,15 +525,16 @@ def render_media_plan(client: dict) -> None:
                     st.rerun()
                 except Exception:
                     st.error("No fue posible leer el archivo.", icon=":material/error:")
+        st.space("small")
         with st.container(border=True):
             saved = client.get("media_plan", "")
             st.markdown("**Estado**")
             if saved:
-                st.badge("Contexto guardado", icon=":material/check:", color="green")
-                st.caption(f"{len(saved.split())} palabras indexadas para recuperación semántica.")
+                st.badge("Guardado", icon=":material/check:", color="green")
+                st.caption(f"{len(saved.split())} palabras")
             else:
                 st.badge("Sin guardar", color="orange")
-                st.caption("Guarda el contexto para habilitar el análisis.")
+                st.caption("Habilita análisis")
 
 
 def render_alert(alert: dict) -> None:
@@ -484,29 +599,30 @@ def render_analysis(client: dict) -> None:
         st.caption("Cruce de audiencias, verificación en CM360 y razonamiento sobre el media plan.")
     with action:
         run_analysis = st.button(
-            "Ejecutar análisis",
-            icon=":material/auto_awesome:",
+            "✨ Ejecutar análisis",
             type="primary",
             disabled=not ready,
-            width="stretch",
+            use_container_width=True,
         )
 
-    with st.container(horizontal=True, gap="small"):
+    st.divider()
+    col1, col2, col3 = st.columns(3, gap="medium")
+    with col1:
         st.badge(
-            "CM360" if sources.get("cm360") else "CM360 pendiente",
-            icon=":material/check:" if sources.get("cm360") else None,
+            "✓ CM360" if sources.get("cm360") else "CM360 pendiente",
             color="green" if sources.get("cm360") else "orange",
         )
+    with col2:
         st.badge(
-            "Red de medios" if network_connected else "Red pendiente",
-            icon=":material/check:" if network_connected else None,
+            "✓ Red de medios" if network_connected else "Red pendiente",
             color="green" if network_connected else "gray",
         )
+    with col3:
         st.badge(
-            "Contexto" if has_plan else "Contexto pendiente",
-            icon=":material/check:" if has_plan else None,
+            "✓ Contexto" if has_plan else "Contexto pendiente",
             color="green" if has_plan else "gray",
         )
+    st.space("small")
 
     if run_analysis:
         with st.status("Analizando inversión cross-platform", expanded=True) as status:
