@@ -1,0 +1,24 @@
+Estrategia de Medios — Q4
+================================
+
+Objetivos Q4: Priorizar la eficiencia (CPA bajo) sobre el volumen puro. Evitar duplicación de audiencias es crítico para cuidar el budget.
+
+Principios de inversión
+- El presupuesto incremental debe ir a canales y audiencias con CPA por debajo del benchmark de categoría.
+- Si dos plataformas entregan la misma audiencia, consolidar en el canal con mejor CPA y pausar el duplicado.
+- El solapamiento por encima del 70% se considera waste operativo y debe alertarse de inmediato.
+
+Pacing y control de gasto
+- Desviaciones diarias mayores al 20% respecto al plan requieren revisión el mismo día.
+- No acelerar spend para “cerrar el mes” si eso degrada el CPA.
+- CM360 es la fuente de verificación independiente de conversiones duplicadas.
+
+Audiencias prioritarias Q4
+- Sneakerheads / Athletic Shoes: alta intención de compra, alto riesgo de duplicación entre Meta y Google.
+- Lookalikes de compradores recientes: usar solo en una plataforma a la vez.
+- Retargeting de carrito: cap de frecuencia estricto; no solapar con in-market de Search.
+
+Recomendaciones operativas
+- Ante solapamiento confirmado, recortar el ad set/ad group de mayor CPA.
+- Reasignar el budget liberado a audiencias no cubiertas o a creatividades con mejor eficiencia.
+- Documentar cada recorte en Slack para trazabilidad del equipo de medios.

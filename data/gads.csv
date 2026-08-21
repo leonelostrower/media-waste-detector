@@ -1,0 +1,5 @@
+campaign_id,ad_group_name,audience_description,spend,conversions
+GADS-INM-101,Athletic Shoes,"Athletic Shoes In-Market: shoppers actively researching running shoes, basketball sneakers, and performance athletic footwear.",16200.0,155
+GADS-BRD-102,Brand Exact Footwear,Users searching brand-exact terms for our sneaker lines and official store.,7800.0,210
+GADS-YTB-103,YouTube Sports Highlights,YouTube viewers of professional basketball and running race highlights.,5400.0,29
+GADS-GSP-104,School Uniforms Shopping,"In-market for school uniforms, backpacks, and kids apparel; not athletic shoes.",2100.0,18

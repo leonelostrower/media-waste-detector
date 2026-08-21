@@ -1,0 +1,5 @@
+campaign_id,ad_set_name,audience_description,spend,conversions
+META-SNK-001,Sneakerheads,"Sneakerheads: enthusiasts of limited-edition athletic sneakers, streetwear drops, and premium basketball shoes.",18500.0,142
+META-RET-002,Cart Abandoners 7d,Users who added running or basketball shoes to cart in the last 7 days but did not purchase.,4200.0,88
+META-LAL-003,LAL Purchasers 1%,1% lookalike of purchasers of athletic footwear in the last 90 days.,9100.0,61
+META-AW-004,Parents Back to School,"Parents of school-age children interested in affordable kids apparel and school supplies, not athletic sneakers.",3500.0,40
