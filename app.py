@@ -10,6 +10,16 @@ import pandas as pd
 import streamlit as st
 from pypdf import PdfReader
 
+# Fallback for st.space (added in Streamlit 1.51, we use 1.50)
+if not hasattr(st, "space"):
+    def _space(size="small"):
+        pixels = {"small": 16, "medium": 32, "large": 64, "stretch": 16}.get(size, 16)
+        if not isinstance(size, str):
+            pixels = int(size)
+        st.markdown(f'<div style="height:{pixels}px"></div>', unsafe_allow_html=True)
+    
+    st.space = _space
+
 import data_manager as dm
 from business_logic import run_copilot_analysis
 
@@ -91,6 +101,7 @@ st.html(
       min-height: auto !important;
       display: flex !important;
       flex-direction: column !important;
+      height: 100% !important;
     }
     [data-testid="stVerticalBlockBorderWrapper"] > div {
       display: flex !important;
@@ -129,6 +140,9 @@ st.html(
     .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primaryFormSubmit"] {
       background: var(--mf-plum) !important;
       border: none !important;
+      color: #FFFFFF !important;
+    }
+    .stButton > button[kind="primary"] p, .stFormSubmitButton > button[kind="primaryFormSubmit"] p {
       color: #FFFFFF !important;
     }
     .stButton > button[kind="primary"]:hover, .stFormSubmitButton > button[kind="primaryFormSubmit"]:hover {
@@ -407,8 +421,6 @@ def connect_source(client_id: str, source: str, label: str) -> None:
         time.sleep(0.9)
     with st.spinner("Descargando reportes..."):
         dm.read_source(source)
-        if source == "cm360":
-            dm.read_source("pacing")
         time.sleep(0.9)
     dm.set_source_connected(client_id, source, True)
     st.toast("Conexión establecida", icon=":material/check_circle:")
@@ -421,6 +433,13 @@ def render_source_card(
     description: str,
     required: bool = False,
 ) -> None:
+    # Define metrics for each source
+    metrics_map = {
+        "cm360": "Conversiones verificadas, Solapamiento entre canales",
+        "google_ads": "Campañas, Grupos de anuncios, Audiencias, Conversiones",
+        "meta": "Conjuntos de anuncios, Audiencias, Conversiones, Performance",
+    }
+    
     connected = bool(client.get("sources", {}).get(source))
     with st.container(border=True):
         col1, col2 = st.columns([3, 1])
@@ -430,7 +449,7 @@ def render_source_card(
             else:
                 st.badge("Requerido" if required else "Opcional", color="orange" if required else "gray")
             st.markdown(f"**{title}**")
-            st.caption(shorten(description, 72))
+            st.caption(description)
         with col2:
             if connected:
                 st.metric("Entidades", len(dm.read_source(source)))
@@ -444,57 +463,98 @@ def render_source_card(
                 use_container_width=True,
                 on_click=lambda: connect_source(client["id"], source, title),
             )
+        else:
+            # Show available metrics when connected
+            st.divider()
+            st.caption("📊 **Mediciones disponibles:**")
+            st.caption(metrics_map.get(source, "Datos disponibles"))
 
 
 def render_data_sources(client: dict) -> None:
     st.space("small")
-    st.subheader("Fuentes de datos")
-    st.caption("CM360 es obligatorio para verificar duplicación de conversiones.")
+    title_col, action_col = st.columns([4, 1], vertical_alignment="center")
+    with title_col:
+        st.subheader("Fuentes de datos")
+    with action_col:
+        # Check if CM360 is connected
+        sources = client.get("sources", {})
+        has_cm360 = bool(sources.get("cm360"))
+        
+        if st.button(
+            "🚀 Get Report",
+            type="primary",
+            disabled=not has_cm360,
+            use_container_width=True,
+            key="get_insights_header",
+        ):
+            st.session_state.view = "analysis"
+            st.rerun()
+    
+    st.caption("Campaign Manager 360 es la fuente de datos principal para el análisis.")
     st.space("small")
-    columns = st.columns(3, gap="medium")
-    with columns[0]:
-        render_source_card(
-            client,
-            "cm360",
-            "Campaign Manager 360",
-            "Verificación independiente de conversiones y costos.",
-            required=True,
-        )
-    with columns[1]:
-        render_source_card(
-            client,
-            "google_ads",
-            "Google Ads",
-            "Campañas, grupos de anuncios y audiencias.",
-        )
-    with columns[2]:
-        render_source_card(
-            client,
-            "meta",
-            "Meta Ads",
-            "Conjuntos de anuncios y performance por audiencia.",
-        )
+    
+    # Show only CM360 source card
+    render_source_card(
+        client,
+        "cm360",
+        "Campaign Manager 360",
+        "Verificación de conversiones, costos y análisis de solapamientos entre canales.",
+        required=True,
+    )
 
 
 def render_media_plan(client: dict) -> None:
     st.space("small")
-    st.subheader("Contexto de negocio")
-    st.caption("Estrategia de medios y objetivos que alimentan el razonamiento del copiloto.")
+    st.subheader("📋 Contexto de Negocio (Opcional)")
+    
+    st.markdown("""
+Este documento proporciona **contexto estratégico al Agente de Insights** para orientar su análisis:
+- Objetivos de campaña y KPIs esperados
+- Lineamientos de inversión y presupuesto
+- Criterios de optimización
+- Cualquier contexto relevante para interpretar los datos
+
+El análisis de solapamientos funciona sin este documento, pero sus recomendaciones serán más precisas si cuentan con este contexto.
+    """)
     st.space("small")
 
     plan_key = f"plan_text_{client['id']}"
     st.session_state.setdefault(plan_key, client.get("media_plan", ""))
 
-    editor, side = st.columns([3, 2], gap="medium")
-    with editor:
+    # Step 1: Import Media Strategy
+    with st.container(border=True):
+        st.markdown("**Importar Estrategia de Medios**")
+        st.caption("Carga un documento TXT o PDF con tus objetivos y lineamientos.")
+        uploaded = st.file_uploader(
+            label="Archivo",
+            type=["txt", "pdf"],
+            key=f"plan_file_{client['id']}",
+            label_visibility="collapsed",
+            accept_multiple_files=False,
+        )
+        if uploaded and st.session_state.get("loaded_plan_file") != uploaded.name:
+            try:
+                st.session_state[plan_key] = extract_uploaded_text(uploaded)
+                st.session_state.loaded_plan_file = uploaded.name
+                st.rerun()
+            except Exception:
+                st.error("No fue posible leer el archivo.", icon=":material/error:")
+    
+    st.space("small")
+    
+    # Step 2: Extracted objectives + Additional context
+    col_main, col_status = st.columns([3, 1], gap="medium")
+    
+    with col_main:
         with st.container(border=True):
-            st.markdown("**Estrategia de medios y objetivos**")
-            st.caption("Pega el plan o importa un documento.")
+            st.markdown("**Objetivos y contexto extraído**")
+            st.caption("Los objetivos se extraen del documento. Opcionalmente agrega comentarios adicionales.")
             st.text_area(
-                "Plan",
+                "Contexto del análisis",
+                value="",
                 key=plan_key,
                 height=220,
-                placeholder="Objetivos del trimestre, lineamientos de inversión y criterios de optimización.",
+                placeholder="Objetivos del trimestre, lineamientos de inversión, criterios de optimización y cualquier otro contexto relevante.",
                 label_visibility="collapsed",
             )
             st.space("small")
@@ -507,103 +567,211 @@ def render_media_plan(client: dict) -> None:
                 dm.update_client(client["id"], media_plan=st.session_state[plan_key].strip())
                 st.toast("Contexto actualizado", icon=":material/check_circle:")
                 st.rerun()
-    with side:
+    
+    with col_status:
         with st.container(border=True):
-            st.markdown("**Importar documento**")
-            st.caption("TXT o PDF")
-            uploaded = st.file_uploader(
-                label="Archivo",
-                type=["txt", "pdf"],
-                key=f"plan_file_{client['id']}",
-                label_visibility="collapsed",
-                accept_multiple_files=False,
-            )
-            if uploaded and st.session_state.get("loaded_plan_file") != uploaded.name:
-                try:
-                    st.session_state[plan_key] = extract_uploaded_text(uploaded)
-                    st.session_state.loaded_plan_file = uploaded.name
-                    st.rerun()
-                except Exception:
-                    st.error("No fue posible leer el archivo.", icon=":material/error:")
-        st.space("small")
-        with st.container(border=True):
-            saved = client.get("media_plan", "")
             st.markdown("**Estado**")
+            saved = client.get("media_plan", "")
             if saved:
                 st.badge("Guardado", icon=":material/check:", color="green")
                 st.caption(f"{len(saved.split())} palabras")
             else:
                 st.badge("Sin guardar", color="orange")
-                st.caption("Habilita análisis")
+                st.caption("Opcional")
 
 
-def render_alert(alert: dict) -> None:
-    columns = st.columns(3, gap="medium")
-    with columns[0]:
-        st.metric("Solapamiento", f"{alert['confidence']:.0f}%", border=True)
-    with columns[1]:
-        st.metric("Conversiones duplicadas", alert["duplicated_conversions"], border=True)
-    with columns[2]:
-        st.metric("Impacto financiero", f"${alert['monthly_impact']:,.0f}/mes", border=True)
 
+
+def render_daily_platform_activity() -> None:
+    """Render multi-series time-series chart of daily platform activity."""
+    from business_logic import get_daily_platform_activity
+    
+    st.subheader("Daily Platform Activity")
+    st.caption("Daily touches and platform engagement over the reporting period.")
+    
+    # Get data
+    activity_data = get_daily_platform_activity()
+    
+    if activity_data.empty:
+        st.info("No platform activity data available for this period.")
+        return
+    
+    # Pivot data for line chart (dates as index, platforms as columns)
+    chart_data = activity_data.pivot(index="date", columns="platform", values="daily_touches")
+    
+    # Create line chart with Streamlit
+    st.line_chart(
+        chart_data,
+        use_container_width=True,
+        height=350,
+        color=["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"],  # Professional color palette
+    )
+    
+    # Chart legend and info
+    st.caption(
+        "Hover over the chart to see exact values. "
+        "Peaks and troughs indicate daily performance variation."
+    )
+
+
+def render_path_mix() -> None:
+    """Render vertical bar chart of mid-funnel vs search path mix."""
+    from business_logic import get_path_mix_data
+    
+    st.subheader("Search vs Mid-Funnel Path Mix")
+    st.caption("Distribution of conversions by attribution path type.")
+    
+    # Get data
+    mix_data = get_path_mix_data()
+    
+    # Create DataFrame for bar chart
+    chart_df = pd.DataFrame({
+        "Path Type": mix_data["categories"],
+        "Conversions": mix_data["absolute"],
+        "% of Total": mix_data["percentage"],
+    })
+    
+    # Create two columns for dual metrics display
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        path_length_df = pd.DataFrame({
+            "Path Type": mix_data["categories"],
+            "Conversions": mix_data["absolute"],
+        }).set_index("Path Type")
+        
+        st.bar_chart(
+            path_length_df,
+            use_container_width=True,
+            height=300,
+            color=["#4F24EE"],
+        )
+        st.caption("Absolute conversions by path type")
+    
+    with col2:
+        pct_df = pd.DataFrame({
+            "Path Type": mix_data["categories"],
+            "Percentage": mix_data["percentage"],
+        }).set_index("Path Type")
+        
+        st.bar_chart(
+            pct_df,
+            use_container_width=True,
+            height=300,
+            color=["#FF7F0E"],
+        )
+        st.caption("Percentage of total conversions")
+    
+    # Display supporting metrics and interpretation
     st.space("small")
-    st.warning(
-        f"""🚨 ALERTA DE ALTA CONFIANZA
-- Solapamiento detectado: {alert['confidence']:.0f}%
-- Verificación CM360: {alert['duplicated_conversions']} conversiones duplicadas confirmadas.
-- Impacto financiero: ${alert['monthly_impact']:,.0f}/mes
-- Contexto Estratégico: {alert['strategic_context']}
-- Acción Recomendada: {alert['recommended_action']}""",
-        icon=":material/warning:",
-    )
+    metric_cols = st.columns(len(mix_data["categories"]))
+    for idx, (category, abs_val, pct_val) in enumerate(
+        zip(mix_data["categories"], mix_data["absolute"], mix_data["percentage"])
+    ):
+        with metric_cols[idx]:
+            st.metric(
+                category,
+                f"{abs_val:,}",
+                f"{pct_val:.1f}%",
+                border=True,
+            )
+    
+    # Display interpretation
+    st.space("medium")
+    st.markdown("#### Path Analysis Insights")
+    st.markdown(mix_data["description"])
 
 
-def render_overlap_table(overlaps: list) -> None:
-    frame = pd.DataFrame(
-        [
-            {
-                "Audiencia Meta": item.meta_audience,
-                "Audiencia Google": item.google_audience,
-                "Similitud semántica": item.semantic_similarity,
-                "Solapamiento CM360": item.overlap_percentage / 100,
-                "Conversiones duplicadas": item.duplicated_conversions,
-                "Impacto mensual": item.monthly_impact,
-            }
-            for item in overlaps
-        ]
-    )
+
+
+def render_journey_length() -> None:
+    """Render conversion journey length metrics with dual bar charts and supporting table."""
+    from business_logic import get_journey_length_data
+    
+    st.subheader("Conversion Journey Length")
+    st.caption("Path complexity and time-to-conversion metrics by journey type.")
+    
+    # Get data
+    journey_data = get_journey_length_data()
+    
+    # Create two columns for dual bar charts
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        path_length_df = pd.DataFrame({
+            "Journey Type": journey_data["groups"],
+            "Avg Path Length": journey_data["avg_path_length"],
+        }).set_index("Journey Type")
+        
+        st.bar_chart(
+            path_length_df,
+            use_container_width=True,
+            height=300,
+            color=["#4F24EE"],
+        )
+        st.caption("Average number of touches to conversion")
+    
+    with col2:
+        days_to_convert_df = pd.DataFrame({
+            "Journey Type": journey_data["groups"],
+            "Avg Days": journey_data["avg_days_to_convert"],
+        }).set_index("Journey Type")
+        
+        st.bar_chart(
+            days_to_convert_df,
+            use_container_width=True,
+            height=300,
+            color=["#FF7F0E"],
+        )
+        st.caption("Average days from first touch to conversion")
+    
+    # Supporting comparison table
+    st.space("medium")
+    st.markdown("#### Journey Comparison Table")
+    
+    table_df = pd.DataFrame(journey_data["table_data"])
     st.dataframe(
-        frame,
+        table_df,
+        use_container_width=True,
         hide_index=True,
-        width="stretch",
         column_config={
-            "Similitud semántica": st.column_config.NumberColumn(format="%.2f"),
-            "Solapamiento CM360": st.column_config.ProgressColumn(
-                format="percent", min_value=0, max_value=1
-            ),
-            "Impacto mensual": st.column_config.NumberColumn(format="dollar"),
+            "Journey Type": st.column_config.TextColumn("Journey Type"),
+            "Avg Path Length": st.column_config.NumberColumn("Avg Path Length", format="%.1f"),
+            "Avg Days to Convert": st.column_config.NumberColumn("Avg Days to Convert", format="%.1f"),
+            "Conversions": st.column_config.NumberColumn("Conversions", format="%d"),
+            "Total Touches": st.column_config.NumberColumn("Total Touches", format="%d"),
         },
     )
+    
+    # Display interpretation
+    st.space("medium")
+    st.markdown("#### Journey Analysis Insights")
+    st.markdown(journey_data["description"])
 
 
-def render_analysis(client: dict) -> None:
+
+
+def render_analysis(client: dict, auto_run: bool = False) -> None:
     sources = client.get("sources", {})
-    network_connected = bool(sources.get("google_ads") or sources.get("meta"))
-    has_plan = bool(client.get("media_plan"))
-    ready = bool(sources.get("cm360")) and network_connected and has_plan
+    cm360_connected = bool(sources.get("cm360"))
+    ready = cm360_connected
 
     st.space("small")
     heading, action = st.columns([5, 2], vertical_alignment="bottom")
     with heading:
-        st.subheader("QA & Insights Engine")
+        st.subheader("Path to Conversion Report")
         st.caption("Cruce de audiencias, verificación en CM360 y razonamiento sobre el media plan.")
     with action:
-        run_analysis = st.button(
-            "✨ Ejecutar análisis",
-            type="primary",
-            disabled=not ready,
-            use_container_width=True,
-        )
+        # If auto_run is True, don't show button and run automatically
+        if auto_run:
+            run_analysis = True
+        else:
+            run_analysis = st.button(
+                "✨ Get Report",
+                type="primary",
+                disabled=not ready,
+                use_container_width=True,
+            )
 
     st.divider()
     col1, col2, col3 = st.columns(3, gap="medium")
@@ -614,23 +782,18 @@ def render_analysis(client: dict) -> None:
         )
     with col2:
         st.badge(
-            "✓ Red de medios" if network_connected else "Red pendiente",
-            color="green" if network_connected else "gray",
+            "✓ Datos cargados" if cm360_connected else "Datos pendientes",
+            color="green" if cm360_connected else "gray",
         )
     with col3:
         st.badge(
-            "✓ Contexto" if has_plan else "Contexto pendiente",
-            color="green" if has_plan else "gray",
+            "✓ Contexto" if client.get("media_plan") else "Contexto (opcional)",
+            color="green" if client.get("media_plan") else "gray",
         )
     st.space("small")
 
     if run_analysis:
-        with st.status("Analizando inversión cross-platform", expanded=True) as status:
-            st.write("Comparando taxonomías de audiencia")
-            result = run_copilot_analysis(client["media_plan"])
-            st.write("Validando conversiones con CM360")
-            st.write("Contrastando hallazgos con el media plan")
-            status.update(label="Análisis completado", state="complete", expanded=False)
+        result = run_copilot_analysis(client["media_plan"])
         st.session_state.analysis_result = result
         st.session_state.analysis_client_id = client["id"]
 
@@ -642,39 +805,64 @@ def render_analysis(client: dict) -> None:
     if not result:
         st.space("small")
         if not ready:
-            st.caption("Conecta CM360, una red de medios y guarda el contexto para habilitar el análisis.")
+            st.caption("Conecta CM360 y carga los datos para habilitar el análisis.")
         return
 
     st.space("medium")
-    alert = result.get("alert")
-    if alert:
-        render_alert(alert)
-    else:
-        st.success(
-            "No se detectaron solapamientos por encima del umbral.",
-            icon=":material/check_circle:",
-        )
-
-    pacing = result.get("pacing", [])
-    if pacing:
-        st.space("medium")
-        st.subheader("Desvíos de pacing")
-        columns = st.columns(min(len(pacing), 3), gap="medium")
-        for column, finding in zip(columns, pacing):
-            with column:
-                st.metric(
-                    shorten(finding.campaign_name, 34),
-                    f"${finding.actual:,.0f}/día",
-                    f"{finding.deviation:+.1f}% vs. plan",
-                    delta_color="inverse",
-                    border=True,
-                )
-
+    
+    # Get overlaps early for summary
     overlaps = result.get("overlaps", [])
+    
+    # Summary section FIRST
+    st.subheader("📋 Executive Summary")
+    
     if overlaps:
-        st.space("medium")
-        st.subheader("Detalle de audiencias")
-        render_overlap_table(overlaps)
+        from business_logic import get_path_mix_data, get_journey_length_data
+        
+        # Get additional data for a comprehensive summary
+        path_mix = get_path_mix_data()
+        journey_data = get_journey_length_data()
+        
+        # Calculate totals
+        total_overlaps = len(overlaps)
+        avg_overlap = sum([item.overlap_percentage for item in overlaps]) / total_overlaps
+        total_duplicated = sum([item.duplicated_conversions for item in overlaps])
+        total_impact = sum([item.monthly_impact for item in overlaps])
+        total_conversions = path_mix["total"]
+        
+        # Display metrics as cards
+        metric_cols = st.columns(3, gap="medium")
+        with metric_cols[0]:
+            st.metric("Overlap", f"{avg_overlap:.0f}%", border=True)
+        with metric_cols[1]:
+            st.metric("Duplicate Conversions", total_duplicated, border=True)
+        with metric_cols[2]:
+            st.metric("Financial Impact", f"${total_impact:,.0f}/month", border=True)
+        
+        st.space("small")
+        
+        # Summary narrative
+        summary_text = f"""
+**Conversion Path Analysis:**
+- **Total conversions analyzed:** {total_conversions:,} documented conversions
+- **Path distribution:** {path_mix['percentage'][0]:.1f}% search-only, {path_mix['percentage'][1]:.1f}% mixed paths, {path_mix['percentage'][2]:.1f}% mid-funnel-only
+- **Average complexity:** {journey_data['avg_path_length'][1]:.1f} touches for mixed paths, {journey_data['avg_days_to_convert'][1]:.1f} average days to convert
+- **Audience pairs with overlap:** {total_overlaps} pairs detected with confirmed duplication in CM360
+- **Recommendation:** Optimize conversion paths and implement exclusions to improve efficiency
+        """
+        st.markdown(summary_text)
+    
+    # Daily platform activity chart
+    st.space("medium")
+    render_daily_platform_activity()
+
+    # Path mix chart
+    st.space("medium")
+    render_path_mix()
+
+    # Journey length chart
+    st.space("medium")
+    render_journey_length()
 
 
 def render_workspace() -> None:
@@ -689,15 +877,33 @@ def render_workspace() -> None:
     if client.get("description"):
         st.caption(client["description"])
 
-    sources_tab, context_tab, analysis_tab = st.tabs(
-        ["Fuentes de datos", "Contexto de negocio", "QA & Insights"]
-    )
-    with sources_tab:
-        render_data_sources(client)
-    with context_tab:
-        render_media_plan(client)
-    with analysis_tab:
-        render_analysis(client)
+    # Show data sources and context
+    render_data_sources(client)
+    st.space("medium")
+    render_media_plan(client)
+
+
+def render_insights_analysis() -> None:
+    """Dedicated page for Path to Conversion Report - Professional Report Review Interface"""
+    client = dm.get_client(st.session_state.client_id)
+    if not client:
+        navigate("home")
+        st.rerun()
+
+    render_topbar(show_back=True)
+    
+    # Header with metadata
+    st.html('<span class="mf-eyebrow">Report</span>')
+    st.title(client["name"])
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.caption("Path to Conversion Report — Media Waste Detection Analysis")
+    
+    st.divider()
+    
+    # Show the analysis section with auto-run enabled
+    render_analysis(client, auto_run=True)
 
 
 initialize_state()
@@ -705,5 +911,7 @@ if st.session_state.view == "home":
     render_home()
 elif st.session_state.view == "new_client":
     render_new_client()
+elif st.session_state.view == "analysis":
+    render_insights_analysis()
 else:
     render_workspace()

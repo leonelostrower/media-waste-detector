@@ -17,15 +17,10 @@ LOGOS_DIR = DATA_DIR / "logos"
 
 SOURCE_FILES: dict[str, str] = {
     "cm360": "cm360.csv",
-    "google_ads": "gads.csv",
-    "meta": "meta.csv",
-    "pacing": "pacing.csv",
 }
 
 DEFAULT_SOURCES: dict[str, bool] = {
     "cm360": False,
-    "google_ads": False,
-    "meta": False,
 }
 
 

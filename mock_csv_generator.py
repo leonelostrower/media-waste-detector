@@ -137,6 +137,27 @@ def generate_exports(output_dir: Path | None = None) -> Path:
                 "duplicated_conversions": 5,
                 "overlap_cost": 420.00,
             },
+            {
+                "meta_audience": "Sneakerheads",
+                "google_audience": "Brand Exact Footwear",
+                "overlap_percentage": 31.0,
+                "duplicated_conversions": 18,
+                "overlap_cost": 890.00,
+            },
+            {
+                "meta_audience": "Cart Abandoners 7d",
+                "google_audience": "Athletic Shoes",
+                "overlap_percentage": 56.0,
+                "duplicated_conversions": 14,
+                "overlap_cost": 720.00,
+            },
+            {
+                "meta_audience": "LAL Purchasers 1%",
+                "google_audience": "Brand Exact Footwear",
+                "overlap_percentage": 19.0,
+                "duplicated_conversions": 8,
+                "overlap_cost": 450.00,
+            },
         ],
     )
 
