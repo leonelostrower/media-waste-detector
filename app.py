@@ -435,9 +435,9 @@ def render_source_card(
 ) -> None:
     # Define metrics for each source
     metrics_map = {
-        "cm360": "Conversiones verificadas, Solapamiento entre canales",
-        "google_ads": "Campañas, Grupos de anuncios, Audiencias, Conversiones",
-        "meta": "Conjuntos de anuncios, Audiencias, Conversiones, Performance",
+        "cm360": "Verified conversions, Cross-platform overlap analysis",
+        "google_ads": "Campaigns, Ad groups, Audiences, Conversions",
+        "meta": "Ad sets, Audiences, Conversions, Performance",
     }
     
     connected = bool(client.get("sources", {}).get(source))
