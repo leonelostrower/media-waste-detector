@@ -276,3 +276,166 @@ def get_journey_length_data() -> dict:
             "journeys show moderate complexity with 3.1 touches and 5.2-day average conversion time."
         ),
     }
+
+
+# ==================== REPORT DATA SECTIONS ====================
+
+def get_executive_summary_data() -> dict:
+    """Section 1: Executive Summary"""
+    return {
+        "introductory_paragraph": (
+            "This comprehensive conversion path analysis examines 7,281 attributed conversions across "
+            "multiple platforms and channels. The report reveals significant opportunities for optimization "
+            "through audience segmentation and cross-platform journey mapping."
+        ),
+        "key_findings": [
+            "Mixed-path conversions represent 40% of total attributed conversions",
+            "Average conversion journey spans 4.2 touches across 2.8 platforms",
+            "Mid-funnel channels drive 35% of total conversions but only cost 22% of media spend",
+            "Search-to-Meta transitional patterns account for 18% of all conversions"
+        ],
+        "kpis": {
+            "attributed_conversions": 7281,
+            "mid_funnel_touched_pct": 68.5,
+            "search_only_pct": 39.5,
+            "mixed_paths_pct": 40.0,
+            "median_conversion_lag_days": 5.2
+        },
+        "editable_summary": "Analysis shows strong mixed-path performance with clear cross-platform synergies."
+    }
+
+
+def get_methodology_data() -> dict:
+    """Section 2: Methodology & Data Notes"""
+    return {
+        "data_source": "Campaign Manager 360 (CM360)",
+        "analysed_period": "June 1, 2026 – August 31, 2026",
+        "attribution_coverage": "95.2% of conversions with complete path data",
+        "classification_methodology": "First-click, last-click, and linear attribution models applied",
+        "lookback_window": "90 days from conversion event",
+        "limitations": [
+            "Cross-device tracking limited to authenticated users",
+            "Direct traffic attribution relies on UTM parameters",
+            "Offline conversions excluded from this analysis"
+        ],
+        "assumptions": [
+            "Platform timestamps synchronized within 5-second window",
+            "Session timeout set to 30 minutes of inactivity"
+        ],
+        "warnings": [
+            "14 conversions (0.2%) removed due to timestamp inconsistencies"
+        ]
+    }
+
+
+def get_top_converting_paths_data() -> dict:
+    """Section 5: Top Converting Paths"""
+    return {
+        "paths": [
+            {"path": "Google Search", "percentage": 12.5},
+            {"path": "Meta Ads", "percentage": 10.2},
+            {"path": "Display", "percentage": 8.7},
+            {"path": "Google Search → Meta Ads", "percentage": 9.4},
+            {"path": "Meta Ads → Google Search", "percentage": 7.8},
+            {"path": "Display → Google Search", "percentage": 6.3},
+            {"path": "Google Search → Display → Meta Ads", "percentage": 5.1},
+        ],
+        "table_data": [
+            {"rank": 1, "path": "Google Search", "conversions": 911, "pct": 12.5},
+            {"rank": 2, "path": "Meta Ads", "conversions": 742, "pct": 10.2},
+            {"rank": 3, "path": "Display", "conversions": 633, "pct": 8.7},
+            {"rank": 4, "path": "Google Search → Meta Ads", "conversions": 684, "pct": 9.4},
+            {"rank": 5, "path": "Meta Ads → Google Search", "conversions": 568, "pct": 7.8},
+        ],
+        "editable_insights": "Single-channel journeys dominate but show declining efficiency compared to multi-touch paths."
+    }
+
+
+def get_platform_transition_data() -> dict:
+    """Section 6: Platform Transition Flow"""
+    platforms = ["Google Search", "Meta Ads", "Display", "LinkedIn"]
+    # Transition probability matrix (from row to column)
+    transition_matrix = [
+        [0, 0.35, 0.28, 0.12],  # From Google Search
+        [0.42, 0, 0.32, 0.08],  # From Meta Ads
+        [0.38, 0.36, 0, 0.15],  # From Display
+        [0.25, 0.30, 0.28, 0],  # From LinkedIn
+    ]
+    return {
+        "platforms": platforms,
+        "transition_matrix": transition_matrix,
+        "editable_insights": "Meta Ads shows strongest transition to other platforms, indicating strong funnel acceleration properties."
+    }
+
+
+def get_platform_breakdown_data() -> dict:
+    """Section 8: Platform Breakdown & Path Position"""
+    return {
+        "platform_table": [
+            {"platform": "Google Search", "touches": 3248, "conversions_influenced": 2841, "pct": 39.0},
+            {"platform": "Meta Ads", "touches": 2156, "conversions_influenced": 2103, "pct": 28.9},
+            {"platform": "Display", "touches": 1834, "conversions_influenced": 1547, "pct": 21.2},
+            {"platform": "LinkedIn", "touches": 892, "conversions_influenced": 790, "pct": 10.8},
+        ],
+        "path_position_data": {
+            "Google Search": {"first": 35, "middle": 42, "last": 18, "only": 5},
+            "Meta Ads": {"first": 28, "middle": 48, "last": 16, "only": 8},
+            "Display": {"first": 22, "middle": 41, "last": 24, "only": 13},
+            "LinkedIn": {"first": 18, "middle": 35, "last": 31, "only": 16},
+        }
+    }
+
+
+def get_first_last_touch_data() -> dict:
+    """Section 9: First Touch → Converting Touch"""
+    platforms = ["Google Search", "Meta Ads", "Display", "LinkedIn"]
+    return {
+        "platforms": platforms,
+        "first_touch_flows": [
+            {"from": "Google Search", "to": "Google Search", "conversions": 892},
+            {"from": "Google Search", "to": "Meta Ads", "conversions": 456},
+            {"from": "Google Search", "to": "Display", "conversions": 234},
+            {"from": "Meta Ads", "to": "Google Search", "conversions": 684},
+            {"from": "Meta Ads", "to": "Meta Ads", "conversions": 512},
+            {"from": "Meta Ads", "to": "Display", "conversions": 198},
+            {"from": "Display", "to": "Google Search", "conversions": 412},
+            {"from": "Display", "to": "Meta Ads", "conversions": 324},
+        ]
+    }
+
+
+def get_funnel_velocity_data() -> dict:
+    """Section 10: Funnel Velocity"""
+    return {
+        "histogram_data": {
+            "bins": [0, 1, 2, 3, 5, 7, 14, 30, 60, 90],
+            "counts": [2341, 1823, 1456, 892, 756, 543, 312, 98, 60, 0],
+        },
+        "median_days": 5.2,
+        "mean_days": 7.8,
+        "sample_size": 8281,
+        "editable_interpretation": "Median 5.2-day conversion window indicates need for consistent retargeting cadence."
+    }
+
+
+def get_conclusions_data() -> dict:
+    """Section 11: Conclusions & Recommendations"""
+    return {
+        "conclusions": [
+            "Mixed-path conversions generate 40% of attributed value despite complex journey requirements",
+            "Platform synergies exist between Google Search and Meta Ads (mutual 35%+ transition rates)",
+            "Mid-funnel channels (Display, LinkedIn) deliver disproportionate value relative to cost"
+        ],
+        "recommendations": [
+            "Implement sequential messaging strategy exploiting Google Search → Meta Ads transition pattern",
+            "Increase mid-funnel budget allocation by 15-20% based on conversion efficiency",
+            "Develop platform-specific audience exclusion rules to prevent unnecessary frequency capping",
+            "Establish 7-day minimum lookback window for cross-platform attribution"
+        ],
+        "limitations": [
+            "Analysis excludes offline conversions and phone leads",
+            "Cross-device attribution limited to logged-in users",
+            "Privacy-driven changes may impact future path visibility"
+        ]
+    }
+

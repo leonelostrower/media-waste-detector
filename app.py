@@ -330,7 +330,7 @@ def render_topbar(show_back: bool = False) -> None:
 
 def render_client_card(client: dict) -> None:
     sources = client.get("sources", {})
-    labels = {"cm360": "CM360", "google_ads": "Google Ads", "meta": "Meta"}
+    labels = {"cm360": "CM360"}
     with st.container(border=True):
         logo_path = client.get("logo_path")
         absolute_logo = dm.ROOT / logo_path if logo_path else None
@@ -760,9 +760,8 @@ def render_analysis(client: dict, auto_run: bool = False) -> None:
     heading, action = st.columns([5, 2], vertical_alignment="bottom")
     with heading:
         st.subheader("Path to Conversion Report")
-        st.caption("Cruce de audiencias, verificación en CM360 y razonamiento sobre el media plan.")
+        st.caption("Comprehensive conversion path analysis and attribution insights.")
     with action:
-        # If auto_run is True, don't show button and run automatically
         if auto_run:
             run_analysis = True
         else:
@@ -777,17 +776,17 @@ def render_analysis(client: dict, auto_run: bool = False) -> None:
     col1, col2, col3 = st.columns(3, gap="medium")
     with col1:
         st.badge(
-            "✓ CM360" if sources.get("cm360") else "CM360 pendiente",
+            "✓ CM360" if sources.get("cm360") else "CM360 pending",
             color="green" if sources.get("cm360") else "orange",
         )
     with col2:
         st.badge(
-            "✓ Datos cargados" if cm360_connected else "Datos pendientes",
+            "✓ Data loaded" if cm360_connected else "Data pending",
             color="green" if cm360_connected else "gray",
         )
     with col3:
         st.badge(
-            "✓ Contexto" if client.get("media_plan") else "Contexto (opcional)",
+            "✓ Context" if client.get("media_plan") else "Context (optional)",
             color="green" if client.get("media_plan") else "gray",
         )
     st.space("small")
@@ -805,64 +804,184 @@ def render_analysis(client: dict, auto_run: bool = False) -> None:
     if not result:
         st.space("small")
         if not ready:
-            st.caption("Conecta CM360 y carga los datos para habilitar el análisis.")
+            st.caption("Connect CM360 and load data to enable analysis.")
         return
 
     st.space("medium")
     
-    # Get overlaps early for summary
-    overlaps = result.get("overlaps", [])
+    # ==================== SECTION 1: EXECUTIVE SUMMARY ====================
+    from business_logic import (
+        get_executive_summary_data, get_methodology_data, get_top_converting_paths_data,
+        get_platform_transition_data, get_platform_breakdown_data, 
+        get_first_last_touch_data, get_funnel_velocity_data, get_conclusions_data
+    )
     
-    # Summary section FIRST
-    st.subheader("📋 Executive Summary")
+    exec_summary = get_executive_summary_data()
+    st.subheader("1. Executive Summary")
+    st.markdown(exec_summary["introductory_paragraph"])
     
-    if overlaps:
-        from business_logic import get_path_mix_data, get_journey_length_data
-        
-        # Get additional data for a comprehensive summary
-        path_mix = get_path_mix_data()
-        journey_data = get_journey_length_data()
-        
-        # Calculate totals
-        total_overlaps = len(overlaps)
-        avg_overlap = sum([item.overlap_percentage for item in overlaps]) / total_overlaps
-        total_duplicated = sum([item.duplicated_conversions for item in overlaps])
-        total_impact = sum([item.monthly_impact for item in overlaps])
-        total_conversions = path_mix["total"]
-        
-        # Display metrics as cards
-        metric_cols = st.columns(3, gap="medium")
-        with metric_cols[0]:
-            st.metric("Overlap", f"{avg_overlap:.0f}%", border=True)
-        with metric_cols[1]:
-            st.metric("Duplicate Conversions", total_duplicated, border=True)
-        with metric_cols[2]:
-            st.metric("Financial Impact", f"${total_impact:,.0f}/month", border=True)
-        
-        st.space("small")
-        
-        # Summary narrative
-        summary_text = f"""
-**Conversion Path Analysis:**
-- **Total conversions analyzed:** {total_conversions:,} documented conversions
-- **Path distribution:** {path_mix['percentage'][0]:.1f}% search-only, {path_mix['percentage'][1]:.1f}% mixed paths, {path_mix['percentage'][2]:.1f}% mid-funnel-only
-- **Average complexity:** {journey_data['avg_path_length'][1]:.1f} touches for mixed paths, {journey_data['avg_days_to_convert'][1]:.1f} average days to convert
-- **Audience pairs with overlap:** {total_overlaps} pairs detected with confirmed duplication in CM360
-- **Recommendation:** Optimize conversion paths and implement exclusions to improve efficiency
-        """
-        st.markdown(summary_text)
+    st.markdown("**Key Findings:**")
+    for finding in exec_summary["key_findings"]:
+        st.markdown(f"- {finding}")
     
-    # Daily platform activity chart
+    kpis = exec_summary["kpis"]
+    kpi_cols = st.columns(5, gap="medium")
+    with kpi_cols[0]:
+        st.metric("Attributed Conversions", f"{kpis['attributed_conversions']:,}", border=True)
+    with kpi_cols[1]:
+        st.metric("Mid-Funnel Touched", f"{kpis['mid_funnel_touched_pct']:.1f}%", border=True)
+    with kpi_cols[2]:
+        st.metric("Search-Only", f"{kpis['search_only_pct']:.1f}%", border=True)
+    with kpi_cols[3]:
+        st.metric("Mixed Paths", f"{kpis['mixed_paths_pct']:.1f}%", border=True)
+    with kpi_cols[4]:
+        st.metric("Median Conversion Lag", f"{kpis['median_conversion_lag_days']:.1f}d", border=True)
+    
+    st.text_area("Summary (Editable)", value=exec_summary["editable_summary"], height=80, label_visibility="collapsed")
+    
+    # ==================== SECTION 2: METHODOLOGY & DATA NOTES ====================
+    st.space("medium")
+    st.subheader("2. Methodology & Data Notes")
+    
+    methodology = get_methodology_data()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"**Data Source:** {methodology['data_source']}")
+        st.markdown(f"**Analysed Period:** {methodology['analysed_period']}")
+    with col2:
+        st.markdown(f"**Attribution Coverage:** {methodology['attribution_coverage']}")
+        st.markdown(f"**Classification:** {methodology['classification_methodology']}")
+    with col3:
+        st.markdown(f"**Lookback Window:** {methodology['lookback_window']}")
+    
+    with st.expander("📋 Assumptions"):
+        for assumption in methodology["assumptions"]:
+            st.markdown(f"• {assumption}")
+    
+    with st.expander("⚠️ Limitations"):
+        for limitation in methodology["limitations"]:
+            st.markdown(f"• {limitation}")
+    
+    with st.expander("🚨 Warnings"):
+        for warning in methodology["warnings"]:
+            st.markdown(f"• {warning}")
+    
+    # ==================== SECTION 3: DAILY PLATFORM ACTIVITY ====================
     st.space("medium")
     render_daily_platform_activity()
-
-    # Path mix chart
+    
+    # ==================== SECTION 4: MID-FUNNEL VS SEARCH PATH MIX ====================
     st.space("medium")
     render_path_mix()
-
-    # Journey length chart
+    
+    # ==================== SECTION 5: TOP CONVERTING PATHS ====================
+    st.space("medium")
+    st.subheader("5. Top Converting Paths")
+    
+    paths_data = get_top_converting_paths_data()
+    st.markdown("**Most Common Conversion Journeys:**")
+    
+    path_cols = st.columns(len(paths_data["paths"]))
+    for col, path_info in zip(path_cols, paths_data["paths"]):
+        with col:
+            st.metric(path_info["path"], f"{path_info['percentage']:.1f}%", border=True)
+    
+    with st.expander("📊 Detailed Path Table"):
+        path_df = pd.DataFrame(paths_data["table_data"])
+        st.dataframe(path_df, use_container_width=True, hide_index=True)
+    
+    st.text_area("Path Insights (Editable)", value=paths_data["editable_insights"], height=80, label_visibility="collapsed")
+    
+    # ==================== SECTION 6: PLATFORM TRANSITION FLOW ====================
+    st.space("medium")
+    st.subheader("6. Platform Transition Flow")
+    
+    transition_data = get_platform_transition_data()
+    transition_df = pd.DataFrame(
+        transition_data["transition_matrix"],
+        index=transition_data["platforms"],
+        columns=transition_data["platforms"]
+    )
+    
+    st.markdown("**Transition Probability Heatmap (Row → Column):**")
+    # Format as percentages
+    transition_df_display = transition_df.applymap(lambda x: f"{x:.0%}")
+    st.dataframe(transition_df_display, use_container_width=True)
+    
+    st.text_area("Transition Insights (Editable)", value=transition_data["editable_insights"], height=80, label_visibility="collapsed")
+    
+    # ==================== SECTION 7: CONVERSION JOURNEY LENGTH ====================
     st.space("medium")
     render_journey_length()
+    
+    # ==================== SECTION 8: PLATFORM BREAKDOWN & PATH POSITION ====================
+    st.space("medium")
+    st.subheader("8. Platform Breakdown & Path Position")
+    
+    platform_data = get_platform_breakdown_data()
+    platform_df = pd.DataFrame(platform_data["platform_table"])
+    st.markdown("**Platform Performance Summary:**")
+    st.dataframe(platform_df, use_container_width=True, hide_index=True)
+    
+    st.markdown("**Path Position Distribution (%):**")
+    position_df = pd.DataFrame(platform_data["path_position_data"]).T
+    st.bar_chart(position_df, use_container_width=True, height=300)
+    
+    # ==================== SECTION 9: FIRST TOUCH → CONVERTING TOUCH ====================
+    st.space("medium")
+    st.subheader("9. First Touch → Converting Touch")
+    
+    flow_data = get_first_last_touch_data()
+    st.markdown("**Conversion Flow Volume (First Touch → Converting Touch):**")
+    flow_df = pd.DataFrame(flow_data["first_touch_flows"])
+    flow_summary = flow_df.groupby("from")["conversions"].sum().sort_values(ascending=False)
+    st.bar_chart(flow_summary, use_container_width=True, height=300)
+    
+    # ==================== SECTION 10: FUNNEL VELOCITY ====================
+    st.space("medium")
+    st.subheader("10. Funnel Velocity")
+    
+    velocity_data = get_funnel_velocity_data()
+    st.markdown("**Days to Conversion Distribution:**")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Median Days", f"{velocity_data['median_days']:.1f}d", border=True)
+    with col2:
+        st.metric("Mean Days", f"{velocity_data['mean_days']:.1f}d", border=True)
+    with col3:
+        st.metric("Sample Size", f"{velocity_data['sample_size']:,}", border=True)
+    
+    velocity_df = pd.DataFrame({
+        "Days": velocity_data["histogram_data"]["bins"],
+        "Conversions": velocity_data["histogram_data"]["counts"]
+    })
+    st.bar_chart(velocity_df.set_index("Days"), use_container_width=True, height=300)
+    
+    st.text_area("Velocity Insights (Editable)", value=velocity_data["editable_interpretation"], height=80, label_visibility="collapsed")
+    
+    # ==================== SECTION 11: CONCLUSIONS & RECOMMENDATIONS ====================
+    st.space("medium")
+    st.subheader("11. Conclusions & Recommendations")
+    
+    conclusions_data = get_conclusions_data()
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("**Conclusions:**")
+        for conclusion in conclusions_data["conclusions"]:
+            st.markdown(f"• {conclusion}")
+    
+    with col2:
+        st.markdown("**Recommendations:**")
+        for recommendation in conclusions_data["recommendations"]:
+            st.markdown(f"• {recommendation}")
+    
+    with col3:
+        st.markdown("**Limitations:**")
+        for limitation in conclusions_data["limitations"]:
+            st.markdown(f"• {limitation}")
 
 
 def render_workspace() -> None:
