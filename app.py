@@ -321,7 +321,7 @@ def render_topbar(show_back: bool = False) -> None:
     with action:
         if show_back:
             st.button(
-                "← Volver a clientes",
+                "← Back to Clients",
                 on_click=navigate,
                 args=("home",),
                 use_container_width=True,
