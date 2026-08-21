@@ -854,17 +854,17 @@ def render_analysis(client: dict, auto_run: bool = False) -> None:
     with col3:
         st.markdown(f"**Lookback Window:** {methodology['lookback_window']}")
     
-    with st.expander("📋 Assumptions"):
-        for assumption in methodology["assumptions"]:
-            st.markdown(f"• {assumption}")
+    st.markdown("**📋 Assumptions:**")
+    for assumption in methodology["assumptions"]:
+        st.markdown(f"• {assumption}")
     
-    with st.expander("⚠️ Limitations"):
-        for limitation in methodology["limitations"]:
-            st.markdown(f"• {limitation}")
+    st.markdown("**⚠️ Limitations:**")
+    for limitation in methodology["limitations"]:
+        st.markdown(f"• {limitation}")
     
-    with st.expander("🚨 Warnings"):
-        for warning in methodology["warnings"]:
-            st.markdown(f"• {warning}")
+    st.markdown("**🚨 Warnings:**")
+    for warning in methodology["warnings"]:
+        st.markdown(f"• {warning}")
     
     # ==================== SECTION 3: DAILY PLATFORM ACTIVITY ====================
     st.space("medium")
@@ -881,14 +881,18 @@ def render_analysis(client: dict, auto_run: bool = False) -> None:
     paths_data = get_top_converting_paths_data()
     st.markdown("**Most Common Conversion Journeys:**")
     
-    path_cols = st.columns(len(paths_data["paths"]))
-    for col, path_info in zip(path_cols, paths_data["paths"]):
-        with col:
-            st.metric(path_info["path"], f"{path_info['percentage']:.1f}%", border=True)
+    # Display paths in rows of 3 for better responsiveness
+    for i in range(0, len(paths_data["paths"]), 3):
+        path_cols = st.columns(3, gap="medium")
+        for j, col in enumerate(path_cols):
+            if i + j < len(paths_data["paths"]):
+                path_info = paths_data["paths"][i + j]
+                with col:
+                    st.metric(path_info["path"], f"{path_info['percentage']:.1f}%", border=True)
     
-    with st.expander("📊 Detailed Path Table"):
-        path_df = pd.DataFrame(paths_data["table_data"])
-        st.dataframe(path_df, use_container_width=True, hide_index=True)
+    st.markdown("**📊 Detailed Path Table:**")
+    path_df = pd.DataFrame(paths_data["table_data"])
+    st.dataframe(path_df, use_container_width=True, hide_index=True)
     
     st.text_area("Path Insights (Editable)", value=paths_data["editable_insights"], height=80, label_visibility="collapsed")
     
