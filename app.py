@@ -452,7 +452,7 @@ def render_source_card(
             st.caption(description)
         with col2:
             if connected:
-                st.metric("Entidades", len(dm.read_source(source)))
+                st.metric("Entities", len(dm.read_source(source)))
         
         if not connected:
             st.divider()
