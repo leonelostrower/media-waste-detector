@@ -344,13 +344,32 @@ def render_client_card(client: dict) -> None:
             for key, label in labels.items():
                 st.badge(label, color="green" if sources.get(key) else "gray")
         st.divider()
-        st.button(
-            "Open workspace →",
-            key=f"open_{client['id']}",
-            on_click=navigate,
-            args=("workspace", client["id"]),
-            use_container_width=True,
-        )
+        
+        # Action buttons
+        button_col1, button_col2, button_col3 = st.columns([1, 1, 1], gap="small")
+        with button_col1:
+            st.button(
+                "Open workspace →",
+                key=f"open_{client['id']}",
+                on_click=navigate,
+                args=("workspace", client["id"]),
+                use_container_width=True,
+            )
+        with button_col2:
+            st.button(
+                "✏️ Edit",
+                key=f"edit_{client['id']}",
+                on_click=navigate,
+                args=("edit_client", client["id"]),
+                use_container_width=True,
+            )
+        with button_col3:
+            st.button(
+                "🗑️ Delete",
+                key=f"delete_{client['id']}",
+                on_click=lambda: st.session_state.update({"delete_confirm": client["id"]}),
+                use_container_width=True,
+            )
 
 
 def render_home() -> None:
@@ -411,6 +430,67 @@ def render_new_client() -> None:
             if logo:
                 dm.store_logo(client["id"], logo.name, logo.getvalue())
             navigate("workspace", client["id"])
+            st.rerun()
+
+
+def render_edit_client() -> None:
+    render_topbar(show_back=True)
+    st.html('<span class="mf-eyebrow">Edit Client</span>')
+    st.title("Edit Client Details")
+    st.caption("Update client name, description, or logo.")
+    st.space("small")
+
+    # Get client ID from session state
+    client_id = st.session_state.get("selected_client_id")
+    if not client_id:
+        st.error("No client selected.", icon=":material/error:")
+        return
+
+    # Get client data
+    clients = dm.list_clients()
+    client = next((c for c in clients if c["id"] == client_id), None)
+    if not client:
+        st.error("Client not found.", icon=":material/error:")
+        return
+
+    form_column, _ = st.columns([3, 2])
+    with form_column:
+        with st.form("edit_client_form", border=True):
+            name = st.text_input("Client Name", value=client.get("name", ""))
+            description = st.text_area(
+                "Brief Description",
+                value=client.get("description", ""),
+                placeholder="Industry, markets, and main investment objective.",
+                height=96,
+            )
+            logo = st.file_uploader("New Logo", type=["png", "jpg", "jpeg", "webp", "svg"])
+            
+            col1, col2 = st.columns(2, gap="small")
+            with col1:
+                submitted = st.form_submit_button("Save Changes", type="primary")
+            with col2:
+                deleted = st.form_submit_button("Delete Client", type="secondary")
+
+        if submitted:
+            if not name.strip():
+                st.error("Enter the client name.", icon=":material/error:")
+                return
+            # Update client
+            updated_client = client.copy()
+            updated_client["name"] = name
+            updated_client["description"] = description
+            dm.update_client(client_id, name=name, description=description)
+            if logo:
+                dm.store_logo(client_id, logo.name, logo.getvalue())
+            st.toast("Client updated successfully!", icon=":material/check_circle:")
+            navigate("home")
+            st.rerun()
+
+        if deleted:
+            # Delete client
+            dm.delete_client(client_id)
+            st.toast("Client deleted successfully!", icon=":material/delete:")
+            navigate("home")
             st.rerun()
 
 
@@ -1034,6 +1114,8 @@ if st.session_state.view == "home":
     render_home()
 elif st.session_state.view == "new_client":
     render_new_client()
+elif st.session_state.view == "edit_client":
+    render_edit_client()
 elif st.session_state.view == "analysis":
     render_insights_analysis()
 else:
