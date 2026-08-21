@@ -441,14 +441,13 @@ def render_edit_client() -> None:
     st.space("small")
 
     # Get client ID from session state
-    client_id = st.session_state.get("selected_client_id")
+    client_id = st.session_state.get("client_id")
     if not client_id:
         st.error("No client selected.", icon=":material/error:")
         return
 
     # Get client data
-    clients = dm.list_clients()
-    client = next((c for c in clients if c["id"] == client_id), None)
+    client = dm.get_client(client_id)
     if not client:
         st.error("Client not found.", icon=":material/error:")
         return
@@ -476,9 +475,6 @@ def render_edit_client() -> None:
                 st.error("Enter the client name.", icon=":material/error:")
                 return
             # Update client
-            updated_client = client.copy()
-            updated_client["name"] = name
-            updated_client["description"] = description
             dm.update_client(client_id, name=name, description=description)
             if logo:
                 dm.store_logo(client_id, logo.name, logo.getvalue())
