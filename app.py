@@ -357,7 +357,7 @@ def render_client_card(client: dict) -> None:
             )
         with button_col2:
             st.button(
-                "✏️ Edit",
+                "Edit",
                 key=f"edit_{client['id']}",
                 on_click=navigate,
                 args=("edit_client", client["id"]),
@@ -365,7 +365,7 @@ def render_client_card(client: dict) -> None:
             )
         with button_col3:
             st.button(
-                "🗑️ Delete",
+                "Delete",
                 key=f"delete_{client['id']}",
                 on_click=lambda: st.session_state.update({"delete_confirm": client["id"]}),
                 use_container_width=True,
