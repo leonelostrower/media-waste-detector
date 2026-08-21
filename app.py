@@ -339,13 +339,13 @@ def render_client_card(client: dict) -> None:
         else:
             st.html(f'<div class="mf-avatar">{client_initials(client["name"])}</div>')
         st.markdown(f"**{client['name']}**")
-        st.caption(shorten(client.get("description") or "Sin contexto de negocio cargado."))
+        st.caption(shorten(client.get("description") or "No business context loaded."))
         with st.container(horizontal=True, gap="small"):
             for key, label in labels.items():
                 st.badge(label, color="green" if sources.get(key) else "gray")
         st.divider()
         st.button(
-            "Abrir workspace →",
+            "Open workspace →",
             key=f"open_{client['id']}",
             on_click=navigate,
             args=("workspace", client["id"]),
@@ -357,12 +357,12 @@ def render_home() -> None:
     render_topbar()
     heading, action = st.columns([5, 2], vertical_alignment="bottom")
     with heading:
-        st.html('<span class="mf-eyebrow">Portafolio</span>')
-        st.title("Clientes")
-        st.caption("Workspaces activos, integraciones y contexto de negocio.")
+        st.html('<span class="mf-eyebrow">Portfolio</span>')
+        st.title("Clients")
+        st.caption("Active workspaces, integrations and business context.")
     with action:
         st.button(
-            "+ Nuevo cliente",
+            "+ New Client",
             type="primary",
             on_click=navigate,
             args=("new_client",),
@@ -372,7 +372,7 @@ def render_home() -> None:
     st.space("small")
     clients = dm.list_clients()
     if not clients:
-        st.info("Todavía no hay clientes configurados.", icon=":material/domain_add:")
+        st.info("No clients configured yet.", icon=":material/domain_add:")
         return
 
     for row_start in range(0, len(clients), 3):
@@ -385,27 +385,27 @@ def render_home() -> None:
 def render_new_client() -> None:
     render_topbar(show_back=True)
     st.html('<span class="mf-eyebrow">Onboarding</span>')
-    st.title("Nuevo cliente")
-    st.caption("Define la identidad del workspace antes de conectar las fuentes de datos.")
+    st.title("New Client")
+    st.caption("Define your workspace identity before connecting data sources.")
     st.space("small")
 
     form_column, _ = st.columns([3, 2])
     with form_column:
         with st.form("new_client_form", border=True):
-            name = st.text_input("Nombre del cliente", placeholder="Northstar Athletic")
+            name = st.text_input("Client Name", placeholder="Northstar Athletic")
             description = st.text_area(
-                "Descripción breve",
-                placeholder="Industria, mercados y objetivo principal de inversión.",
+                "Brief Description",
+                placeholder="Industry, markets, and main investment objective.",
                 height=96,
             )
             logo = st.file_uploader("Logo", type=["png", "jpg", "jpeg", "webp", "svg"])
             submitted = st.form_submit_button(
-                "Crear workspace",
+                "Create Workspace",
                 type="primary",
             )
         if submitted:
             if not name.strip():
-                st.error("Ingresa el nombre del cliente.", icon=":material/error:")
+                st.error("Enter the client name.", icon=":material/error:")
                 return
             client = dm.create_client(name, description)
             if logo:
@@ -415,15 +415,15 @@ def render_new_client() -> None:
 
 
 def connect_source(client_id: str, source: str, label: str) -> None:
-    with st.spinner(f"Iniciando handshake con {label} API..."):
+    with st.spinner(f"Initiating handshake with {label} API..."):
         time.sleep(0.9)
-    with st.spinner("Sincronizando entidades..."):
+    with st.spinner("Syncing entities..."):
         time.sleep(0.9)
-    with st.spinner("Descargando reportes..."):
+    with st.spinner("Downloading reports..."):
         dm.read_source(source)
         time.sleep(0.9)
     dm.set_source_connected(client_id, source, True)
-    st.toast("Conexión establecida", icon=":material/check_circle:")
+    st.toast("Connection established", icon=":material/check_circle:")
 
 
 def render_source_card(
@@ -445,9 +445,9 @@ def render_source_card(
         col1, col2 = st.columns([3, 1])
         with col1:
             if connected:
-                st.badge("Conectado", icon=":material/check:", color="green")
+                st.badge("Connected", icon=":material/check:", color="green")
             else:
-                st.badge("Requerido" if required else "Opcional", color="orange" if required else "gray")
+                st.badge("Required" if required else "Optional", color="orange" if required else "gray")
             st.markdown(f"**{title}**")
             st.caption(description)
         with col2:
@@ -457,7 +457,7 @@ def render_source_card(
         if not connected:
             st.divider()
             st.button(
-                "Conectar",
+                "Connect",
                 key=f"connect_{source}",
                 type="primary" if required else "secondary",
                 use_container_width=True,
@@ -466,15 +466,15 @@ def render_source_card(
         else:
             # Show available metrics when connected
             st.divider()
-            st.caption("📊 **Mediciones disponibles:**")
-            st.caption(metrics_map.get(source, "Datos disponibles"))
+            st.caption("📊 **Available Metrics:**")
+            st.caption(metrics_map.get(source, "Available Data"))
 
 
 def render_data_sources(client: dict) -> None:
     st.space("small")
     title_col, action_col = st.columns([4, 1], vertical_alignment="center")
     with title_col:
-        st.subheader("Fuentes de datos")
+        st.subheader("Data Sources")
     with action_col:
         # Check if CM360 is connected
         sources = client.get("sources", {})
@@ -490,7 +490,7 @@ def render_data_sources(client: dict) -> None:
             st.session_state.view = "analysis"
             st.rerun()
     
-    st.caption("Campaign Manager 360 es la fuente de datos principal para el análisis.")
+    st.caption("Campaign Manager 360 is the primary data source for analysis.")
     st.space("small")
     
     # Show only CM360 source card
@@ -498,23 +498,23 @@ def render_data_sources(client: dict) -> None:
         client,
         "cm360",
         "Campaign Manager 360",
-        "Verificación de conversiones, costos y análisis de solapamientos entre canales.",
+        "Conversion verification, costs, and cross-channel overlap analysis.",
         required=True,
     )
 
 
 def render_media_plan(client: dict) -> None:
     st.space("small")
-    st.subheader("📋 Contexto de Negocio (Opcional)")
+    st.subheader("📋 Business Context (Optional)")
     
     st.markdown("""
-Este documento proporciona **contexto estratégico al Agente de Insights** para orientar su análisis:
-- Objetivos de campaña y KPIs esperados
-- Lineamientos de inversión y presupuesto
-- Criterios de optimización
-- Cualquier contexto relevante para interpretar los datos
+This document provides **strategic context to the Insights Agent** to guide its analysis:
+- Campaign objectives and expected KPIs
+- Investment guidelines and budget
+- Optimization criteria
+- Any relevant context for interpreting data
 
-El análisis de solapamientos funciona sin este documento, pero sus recomendaciones serán más precisas si cuentan con este contexto.
+Overlap analysis works without this document, but recommendations will be more accurate with this context.
     """)
     st.space("small")
 
@@ -523,10 +523,10 @@ El análisis de solapamientos funciona sin este documento, pero sus recomendacio
 
     # Step 1: Import Media Strategy
     with st.container(border=True):
-        st.markdown("**Importar Estrategia de Medios**")
-        st.caption("Carga un documento TXT o PDF con tus objetivos y lineamientos.")
+        st.markdown("**Import Media Strategy**")
+        st.caption("Upload a TXT or PDF document with your objectives and guidelines.")
         uploaded = st.file_uploader(
-            label="Archivo",
+            label="File",
             type=["txt", "pdf"],
             key=f"plan_file_{client['id']}",
             label_visibility="collapsed",
@@ -538,7 +538,7 @@ El análisis de solapamientos funciona sin este documento, pero sus recomendacio
                 st.session_state.loaded_plan_file = uploaded.name
                 st.rerun()
             except Exception:
-                st.error("No fue posible leer el archivo.", icon=":material/error:")
+                st.error("Could not read the file.", icon=":material/error:")
     
     st.space("small")
     
@@ -547,37 +547,37 @@ El análisis de solapamientos funciona sin este documento, pero sus recomendacio
     
     with col_main:
         with st.container(border=True):
-            st.markdown("**Objetivos y contexto extraído**")
-            st.caption("Los objetivos se extraen del documento. Opcionalmente agrega comentarios adicionales.")
+            st.markdown("**Extracted objectives and context**")
+            st.caption("Objectives are extracted from the document. Optionally add additional comments.")
             st.text_area(
-                "Contexto del análisis",
+                "Analysis Context",
                 value="",
                 key=plan_key,
                 height=220,
-                placeholder="Objetivos del trimestre, lineamientos de inversión, criterios de optimización y cualquier otro contexto relevante.",
+                placeholder="Quarter objectives, investment guidelines, optimization criteria, and any other relevant context.",
                 label_visibility="collapsed",
             )
             st.space("small")
             if st.button(
-                "💾 Guardar contexto",
+                "💾 Save Context",
                 type="primary",
                 disabled=not bool(st.session_state[plan_key].strip()),
                 use_container_width=True,
             ):
                 dm.update_client(client["id"], media_plan=st.session_state[plan_key].strip())
-                st.toast("Contexto actualizado", icon=":material/check_circle:")
+                st.toast("Context updated", icon=":material/check_circle:")
                 st.rerun()
     
     with col_status:
         with st.container(border=True):
-            st.markdown("**Estado**")
+            st.markdown("**Status**")
             saved = client.get("media_plan", "")
             if saved:
-                st.badge("Guardado", icon=":material/check:", color="green")
-                st.caption(f"{len(saved.split())} palabras")
+                st.badge("Saved", icon=":material/check:", color="green")
+                st.caption(f"{len(saved.split())} words")
             else:
-                st.badge("Sin guardar", color="orange")
-                st.caption("Opcional")
+                st.badge("Not Saved", color="orange")
+                st.caption("Optional")
 
 
 
