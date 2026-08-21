@@ -11,6 +11,10 @@ import streamlit as st
 from pypdf import PdfReader
 
 import data_manager as dm
+import ptc_agents as agents
+import ptc_charts as charts
+import ptc_narrative as narrative
+import ptc_pipeline as ptc
 from business_logic import run_copilot_analysis
 
 try:
@@ -154,14 +158,18 @@ def initialize_state() -> None:
     st.session_state.setdefault("client_id", None)
     st.session_state.setdefault("analysis_result", None)
     st.session_state.setdefault("analysis_client_id", None)
+    st.session_state.setdefault("ptc_report", None)
+    st.session_state.setdefault("ptc_report_client_id", None)
 
 
 def navigate(view: str, client_id: str | None = None) -> None:
     st.session_state.view = view
     st.session_state.client_id = client_id
-    if view != "workspace":
+    if view in {"home", "new_client"}:
         st.session_state.analysis_result = None
         st.session_state.analysis_client_id = None
+        st.session_state.ptc_report = None
+        st.session_state.ptc_report_client_id = None
 
 
 def client_initials(name: str) -> str:
@@ -185,7 +193,11 @@ def extract_uploaded_text(uploaded_file) -> str:
     return raw.decode("utf-8", errors="replace").strip()
 
 
-def render_topbar(show_back: bool = False) -> None:
+def render_topbar(
+    show_back: bool = False,
+    back_label: str = "Volver a clientes",
+    back_args: tuple = ("home",),
+) -> None:
     brand, action = st.columns([5, 2], vertical_alignment="center")
     with brand:
         st.html(
@@ -197,10 +209,10 @@ def render_topbar(show_back: bool = False) -> None:
     with action:
         if show_back:
             st.button(
-                "Volver a clientes",
+                back_label,
                 icon=":material/arrow_back:",
                 on_click=navigate,
-                args=("home",),
+                args=back_args,
                 width="stretch",
             )
 
@@ -337,6 +349,62 @@ def render_source_card(
                 connect_source(client["id"], source, title)
 
 
+def render_cm360_card(client: dict) -> None:
+    """CM360 is the mandatory source and the input to the path-to-conversion
+    pipeline, so it takes a real export rather than a simulated handshake."""
+    export = client.get("ptc_export") or {}
+    with st.container(border=True):
+        if export:
+            st.badge("Cargado", icon=":material/check:", color="green")
+        else:
+            st.badge("Requerido", color="orange")
+        st.markdown("**Campaign Manager 360**")
+        st.caption("Export Path to Conversion. Base del reporte y de la verificación.")
+
+        if export:
+            st.metric("Filas del export", f"{export.get('rows', 0):,}")
+            st.caption(f"{shorten(export.get('filename', 'export.csv'), 40)}")
+            if st.button(
+                "Reemplazar export",
+                key="replace_ptc",
+                icon=":material/delete:",
+                width="stretch",
+            ):
+                dm.clear_ptc_export(client["id"])
+                dm.set_source_connected(client["id"], "cm360", False)
+                st.session_state.ptc_report = None
+                st.rerun()
+            return
+
+        uploaded = st.file_uploader(
+            "Export CM360",
+            type=["csv"],
+            key=f"ptc_upload_{client['id']}",
+            label_visibility="collapsed",
+        )
+        if uploaded is None:
+            return
+        raw = uploaded.getvalue()
+        try:
+            summary = inspect_export(raw)
+        except Exception as error:
+            st.error(f"No fue posible leer el export: {error}", icon=":material/error:")
+            return
+        if not summary["campaigns"] and not summary["sites"]:
+            st.error(
+                "El archivo no contiene interacciones de CM360.",
+                icon=":material/error:",
+            )
+            return
+        record = dm.store_ptc_export(client["id"], uploaded.name, raw)
+        dm.update_client(
+            client["id"], ptc_export={**record, "rows": int(summary["n_rows"])}
+        )
+        dm.set_source_connected(client["id"], "cm360", True)
+        st.toast("Export cargado", icon=":material/check_circle:")
+        st.rerun()
+
+
 def render_data_sources(client: dict) -> None:
     st.space("small")
     st.subheader("Fuentes de datos")
@@ -344,13 +412,7 @@ def render_data_sources(client: dict) -> None:
     st.space("small")
     columns = st.columns(3, gap="medium")
     with columns[0]:
-        render_source_card(
-            client,
-            "cm360",
-            "Campaign Manager 360",
-            "Verificación independiente de conversiones y costos.",
-            required=True,
-        )
+        render_cm360_card(client)
     with columns[1]:
         render_source_card(
             client,
@@ -420,6 +482,385 @@ def render_media_plan(client: dict) -> None:
             else:
                 st.badge("Sin guardar", color="orange")
                 st.caption("Guarda el contexto para habilitar el análisis.")
+
+
+# ----------------------------------------------------------------------------
+# Path to Conversion pipeline
+# ----------------------------------------------------------------------------
+
+CHANNEL_OPTIONS = [ptc.SEARCH, ptc.MID_FUNNEL, ptc.OTHER]
+
+
+@st.cache_data(show_spinner=False)
+def inspect_export(raw: bytes) -> dict:
+    return ptc.inspect_export(raw)
+
+
+@st.cache_data(show_spinner=False)
+def propose_taxonomy(raw: bytes) -> agents.TaxonomyProposal:
+    summary = inspect_export(raw)
+    return agents.propose_taxonomy(
+        summary["campaigns"], summary["sites"], summary["pairs"], summary["export_meta"]
+    )
+
+
+@st.cache_data(show_spinner=False)
+def run_pipeline(raw: bytes, taxonomy_payload: dict, steady_state: pd.Timestamp | None):
+    taxonomy = ptc.Taxonomy.from_dict(taxonomy_payload)
+    return ptc.run_pipeline(raw, taxonomy, steady_state)
+
+
+@st.cache_data(show_spinner=False)
+def default_steady_state(raw: bytes, taxonomy_payload: dict) -> pd.Timestamp | None:
+    taxonomy = ptc.Taxonomy.from_dict(taxonomy_payload)
+    header_row = ptc.read_preamble(raw)[1]
+    touches = ptc.build_touches(ptc.load_data(raw, header_row), taxonomy)
+    return ptc.derive_steady_state(touches, taxonomy)
+
+
+def taxonomy_from_editors(
+    campaign_frame: pd.DataFrame,
+    site_frame: pd.DataFrame,
+    pairs: pd.DataFrame,
+) -> ptc.Taxonomy:
+    taxonomy = ptc.Taxonomy(
+        channel_map={
+            str(row["Campaña"]): str(row["Canal"]) for _, row in campaign_frame.iterrows()
+        },
+        platform_map={
+            str(row["Site (CM360)"]): str(row["Plataforma"]).strip() or ptc.OTHER
+            for _, row in site_frame.iterrows()
+        },
+    )
+    taxonomy.platform_channel = agents.resolve_platform_channel(taxonomy, pairs)
+    return taxonomy
+
+
+def build_report(raw: bytes, taxonomy: ptc.Taxonomy, steady_state, language: str) -> dict:
+    result = run_pipeline(raw, taxonomy.to_dict(), steady_state)
+    figures, top_paths_rows, transition_matrix = charts.build_figures(result)
+    sections = narrative.build_sections(result.metrics, top_paths_rows, transition_matrix)
+    fact_sheet = narrative.build_fact_sheet(result.metrics)
+    review = agents.rewrite_narrative(sections, fact_sheet, language=language)
+    return {
+        "result": result,
+        "figures": figures,
+        "sections": review.sections,
+        "review": review,
+        "fact_sheet": fact_sheet,
+    }
+
+
+def render_taxonomy_step(client: dict, raw: bytes, summary: dict) -> None:
+    saved = ptc.Taxonomy.from_dict(client.get("ptc_taxonomy"))
+    proposal_key = f"ptc_proposal_{client['id']}"
+
+    if saved is None and proposal_key not in st.session_state:
+        with st.spinner("Clasificando campañas y sites..."):
+            st.session_state[proposal_key] = propose_taxonomy(raw)
+
+    proposal = st.session_state.get(proposal_key)
+    base = saved or (proposal.taxonomy if proposal else agents.heuristic_taxonomy(
+        summary["campaigns"], summary["sites"]
+    ))
+
+    st.markdown("**Taxonomía del export**")
+    if saved is not None:
+        st.caption("Mapeo guardado para este cliente. Editable en cualquier momento.")
+    elif proposal and proposal.source == "agent":
+        st.caption("Propuesto por el agente a partir de los nombres de campañas y sites.")
+    else:
+        st.caption(
+            "Propuesto por reglas de nombres. Configura GEMINI_API_KEY para que lo "
+            "clasifique el agente."
+        )
+    if proposal and proposal.notes:
+        st.caption(proposal.notes)
+
+    campaign_column, site_column = st.columns(2, gap="medium")
+    with campaign_column:
+        campaign_frame = st.data_editor(
+            pd.DataFrame(
+                [
+                    {"Campaña": campaign, "Canal": base.channel_for(campaign)}
+                    for campaign in summary["campaigns"]
+                ]
+            ),
+            hide_index=True,
+            width="stretch",
+            disabled=["Campaña"],
+            column_config={
+                "Canal": st.column_config.SelectboxColumn(options=CHANNEL_OPTIONS, required=True)
+            },
+            key=f"ptc_campaigns_{client['id']}",
+        )
+    with site_column:
+        site_frame = st.data_editor(
+            pd.DataFrame(
+                [
+                    {"Site (CM360)": site, "Plataforma": base.platform_for(site)}
+                    for site in summary["sites"]
+                ]
+            ),
+            hide_index=True,
+            width="stretch",
+            disabled=["Site (CM360)"],
+            key=f"ptc_sites_{client['id']}",
+        )
+
+    taxonomy = taxonomy_from_editors(campaign_frame, site_frame, summary["pairs"])
+    mid = taxonomy.mid_funnel_platforms
+    search = taxonomy.search_platforms
+    with st.container(horizontal=True, gap="small"):
+        st.badge(f"Search: {', '.join(search) or 'ninguna'}", color="blue")
+        st.badge(f"Mid-funnel: {', '.join(mid) or 'ninguna'}", color="violet")
+
+    if not mid:
+        st.warning(
+            "Ninguna plataforma quedó clasificada como mid-funnel; el reporte no podrá "
+            "comparar Search contra mid-funnel.",
+            icon=":material/warning:",
+        )
+
+    st.space("small")
+    default_steady = default_steady_state(raw, taxonomy.to_dict()) or summary["date_min"]
+    # A touch can predate the conversion window, so the first mid-funnel touch may
+    # fall before the earliest conversion in the export.
+    floor = min(default_steady, summary["date_min"])
+    controls = st.columns([2, 2, 3], gap="medium", vertical_alignment="bottom")
+    with controls[0]:
+        steady_state = st.date_input(
+            "Inicio de la ventana post-activación",
+            value=default_steady.date(),
+            min_value=floor.date(),
+            max_value=summary["date_max"].date(),
+            help="Primer día con actividad mid-funnel. Las conversiones previas se "
+                 "excluyen para no diluir las métricas.",
+            key=f"ptc_steady_{client['id']}",
+        )
+    with controls[1]:
+        language = st.selectbox(
+            "Idioma del reporte",
+            ["English", "Español"],
+            key=f"ptc_language_{client['id']}",
+        )
+    with controls[2]:
+        generate = st.button(
+            "Generar reporte",
+            icon=":material/auto_awesome:",
+            type="primary",
+            width="stretch",
+            disabled=not taxonomy.platform_map,
+        )
+
+    if not generate:
+        return
+
+    dm.update_client(client["id"], ptc_taxonomy=taxonomy.to_dict())
+    with st.status("Analizando el export de CM360", expanded=True) as status:
+        st.write("Reconstruyendo los paths de conversión")
+        report = build_report(raw, taxonomy, pd.Timestamp(steady_state), language)
+        st.write("Generando gráficos")
+        st.write("Redactando la narrativa con el agente")
+        status.update(label="Reporte generado", state="complete", expanded=False)
+
+    st.session_state.ptc_report = report
+    st.session_state.ptc_report_client_id = client["id"]
+    st.session_state.pop("ptc_prose", None)
+    navigate("report", client["id"])
+    st.rerun()
+
+
+def render_path_to_conversion(client: dict) -> None:
+    st.space("small")
+    st.subheader("Path to Conversion")
+    st.caption(
+        "Analiza el export de CM360 y arma el reporte con narrativa lista para el cliente."
+    )
+    st.space("small")
+
+    raw = dm.read_ptc_export(client)
+    if raw is None:
+        st.info(
+            "Carga el export Path to Conversion de CM360 en la pestaña Fuentes de datos "
+            "para habilitar este reporte.",
+            icon=":material/upload_file:",
+        )
+        return
+
+    try:
+        summary = inspect_export(raw)
+    except Exception as error:
+        st.error(f"No fue posible leer el export: {error}", icon=":material/error:")
+        return
+
+    metrics = st.columns(4, gap="medium")
+    metrics[0].metric("Conversiones", f"{summary['n_rows']:,}", border=True)
+    metrics[1].metric(
+        "Ventana",
+        f"{summary['date_min']:%d %b} - {summary['date_max']:%d %b}",
+        border=True,
+    )
+    metrics[2].metric("Slots de interacción", summary["slots"], border=True)
+    metrics[3].metric("Sites", len(summary["sites"]), border=True)
+
+    st.space("medium")
+    with st.container(border=True):
+        render_taxonomy_step(client, raw, summary)
+
+    if st.session_state.ptc_report_client_id == client["id"] and st.session_state.ptc_report:
+        st.space("small")
+        st.button(
+            "Ver último reporte",
+            icon=":material/description:",
+            on_click=navigate,
+            args=("report", client["id"]),
+        )
+
+
+# ----------------------------------------------------------------------------
+# Report screen
+# ----------------------------------------------------------------------------
+
+def prose_key(section_id: str, index: int) -> str:
+    return f"ptc_prose::{section_id}::{index}"
+
+
+def render_narrative_block(block: narrative.Prose, key: str, editing: bool) -> None:
+    if editing:
+        st.text_area(
+            "Narrativa",
+            value=st.session_state.get(key, block.text),
+            key=key,
+            height=max(140, 26 * (block.text.count("\n") + 3)),
+            label_visibility="collapsed",
+        )
+    else:
+        st.markdown(st.session_state.get(key, block.text))
+
+
+def render_table_block(block: narrative.TableBlock) -> None:
+    st.dataframe(
+        pd.DataFrame(block.rows, columns=block.headers),
+        hide_index=True,
+        width="stretch",
+    )
+    if block.caption:
+        st.caption(block.caption)
+
+
+def render_report() -> None:
+    client = dm.get_client(st.session_state.client_id)
+    report = st.session_state.ptc_report
+    if not client or not report or st.session_state.ptc_report_client_id != client["id"]:
+        navigate("workspace", st.session_state.client_id)
+        st.rerun()
+
+    metrics = report["result"].metrics
+    review = report["review"]
+
+    render_topbar(
+        show_back=True,
+        back_label="Volver al workspace",
+        back_args=("workspace", client["id"]),
+    )
+    st.html('<span class="mf-eyebrow">Path to Conversion</span>')
+    st.title(f"{client['name']}: reporte CM360")
+    st.caption(
+        f"{metrics.n_conversions:,} conversiones atribuidas · "
+        f"{metrics.date_min:%d %b %Y} - {metrics.date_max:%d %b %Y} · "
+        f"actividad {shorten(str(metrics.activity_name), 60)}"
+    )
+
+    st.space("small")
+    headline = st.columns(4, gap="medium")
+    headline[0].metric(
+        "Tocadas por mid-funnel", narrative.pct(metrics.pct_mf_touched), border=True
+    )
+    headline[1].metric("Paths mixtos", narrative.pct(metrics.pct_mixed), border=True)
+    headline[2].metric(
+        "Patrón clásico", narrative.pct(metrics.pct_classic), border=True
+    )
+    headline[3].metric(
+        "Lag mediano", f"{narrative.dec(metrics.lag_median)} días", border=True
+    )
+
+    st.space("small")
+    controls = st.columns([3, 2, 2], gap="medium", vertical_alignment="center")
+    with controls[0]:
+        with st.container(horizontal=True, gap="small"):
+            if review.source == "agent":
+                st.badge("Narrativa del agente", icon=":material/smart_toy:", color="green")
+            else:
+                st.badge("Narrativa calculada", icon=":material/functions:", color="gray")
+            if review.rejected:
+                st.badge(
+                    f"{len(review.rejected)} bloques rechazados", color="orange"
+                )
+    with controls[1]:
+        editing = st.toggle("Editar narrativa", key="ptc_editing")
+    with controls[2]:
+        approve = st.button(
+            "Aprobar narrativa",
+            icon=":material/check_circle:",
+            type="primary",
+            width="stretch",
+        )
+
+    if review.rejected:
+        st.warning(
+            "El agente usó cifras que no están en los datos, así que esos bloques "
+            "conservan el texto calculado: "
+            + "; ".join(f"{item['section']} ({item['numbers']})" for item in review.rejected),
+            icon=":material/rule:",
+        )
+    for flag in review.flags:
+        st.info(f"**{flag['section']}**: {flag['issue']}", icon=":material/flag:")
+
+    if approve:
+        approved = {}
+        for section in report["sections"]:
+            for index, block in enumerate(section.blocks):
+                if isinstance(block, narrative.Prose):
+                    key = prose_key(section.id, index)
+                    approved[key] = st.session_state.get(key, block.text)
+        dm.update_client(
+            client["id"],
+            ptc_narrative={
+                "approved_at": pd.Timestamp.now().isoformat(timespec="seconds"),
+                "blocks": approved,
+            },
+        )
+        st.toast("Narrativa aprobada", icon=":material/check_circle:")
+
+    st.space("medium")
+    for section in report["sections"]:
+        st.divider()
+        st.subheader(section.heading)
+        for index, block in enumerate(section.blocks):
+            if isinstance(block, narrative.Prose):
+                render_narrative_block(block, prose_key(section.id, index), editing)
+            elif isinstance(block, narrative.TableBlock):
+                render_table_block(block)
+            elif isinstance(block, narrative.FigureBlock):
+                figure = report["figures"].get(block.key)
+                if figure is not None:
+                    st.plotly_chart(figure, width="stretch", key=f"fig_{section.id}_{index}")
+                if block.caption:
+                    st.caption(block.caption)
+
+    st.divider()
+    with st.expander("Fact sheet verificado"):
+        st.caption(
+            "Todas las cifras calculadas del export. El agente sólo puede citar estos valores."
+        )
+        st.dataframe(
+            pd.DataFrame(
+                sorted(report["fact_sheet"].items()), columns=["Métrica", "Valor"]
+            ),
+            hide_index=True,
+            width="stretch",
+        )
 
 
 def render_alert(alert: dict) -> None:
@@ -573,11 +1014,13 @@ def render_workspace() -> None:
     if client.get("description"):
         st.caption(client["description"])
 
-    sources_tab, context_tab, analysis_tab = st.tabs(
-        ["Fuentes de datos", "Contexto de negocio", "QA & Insights"]
+    sources_tab, report_tab, context_tab, analysis_tab = st.tabs(
+        ["Fuentes de datos", "Path to Conversion", "Contexto de negocio", "QA & Insights"]
     )
     with sources_tab:
         render_data_sources(client)
+    with report_tab:
+        render_path_to_conversion(client)
     with context_tab:
         render_media_plan(client)
     with analysis_tab:
@@ -589,5 +1032,7 @@ if st.session_state.view == "home":
     render_home()
 elif st.session_state.view == "new_client":
     render_new_client()
+elif st.session_state.view == "report":
+    render_report()
 else:
     render_workspace()

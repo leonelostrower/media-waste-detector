@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parent
 CLIENTS_PATH = ROOT / "clients.json"
 DATA_DIR = ROOT / "data"
 LOGOS_DIR = DATA_DIR / "logos"
+UPLOADS_DIR = DATA_DIR / "uploads"
 
 SOURCE_FILES: dict[str, str] = {
     "cm360": "cm360.csv",
@@ -36,6 +37,7 @@ def _now_iso() -> str:
 def _ensure_dirs() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     LOGOS_DIR.mkdir(parents=True, exist_ok=True)
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _empty_client(
@@ -51,6 +53,9 @@ def _empty_client(
         "created_at": _now_iso(),
         "sources": dict(DEFAULT_SOURCES),
         "media_plan": "",
+        "ptc_export": None,
+        "ptc_taxonomy": None,
+        "ptc_narrative": None,
     }
 
 
@@ -106,7 +111,10 @@ def create_client(
 def update_client(client_id: str, **fields: Any) -> dict[str, Any] | None:
     clients = load_clients()
     updated: dict[str, Any] | None = None
-    allowed = {"name", "description", "logo_path", "sources", "media_plan"}
+    allowed = {
+        "name", "description", "logo_path", "sources", "media_plan",
+        "ptc_export", "ptc_taxonomy", "ptc_narrative",
+    }
     for index, client in enumerate(clients):
         if client.get("id") != client_id:
             continue
@@ -127,6 +135,7 @@ def delete_client(client_id: str) -> bool:
     remaining = [c for c in clients if c.get("id") != client_id]
     if len(remaining) == len(clients):
         return False
+    clear_ptc_export(client_id)
     save_clients(remaining)
     return True
 
@@ -152,6 +161,44 @@ def store_logo(client_id: str, filename: str, content: bytes) -> str:
     relative = str(dest.relative_to(ROOT))
     update_client(client_id, logo_path=relative)
     return relative
+
+
+def store_ptc_export(client_id: str, filename: str, content: bytes) -> dict[str, Any]:
+    """Persist a CM360 path-to-conversion export so the report survives a reload."""
+    _ensure_dirs()
+    destination = UPLOADS_DIR / client_id
+    destination.mkdir(parents=True, exist_ok=True)
+    path = destination / "cm360_path_to_conversion.csv"
+    path.write_bytes(content)
+    record = {
+        "filename": filename,
+        "path": str(path.relative_to(ROOT)),
+        "size": len(content),
+        "uploaded_at": _now_iso(),
+    }
+    update_client(client_id, ptc_export=record)
+    return record
+
+
+def read_ptc_export(client: dict[str, Any]) -> bytes | None:
+    record = client.get("ptc_export")
+    if not record or not record.get("path"):
+        return None
+    path = ROOT / record["path"]
+    return path.read_bytes() if path.exists() else None
+
+
+def clear_ptc_export(client_id: str) -> None:
+    client = get_client(client_id)
+    if client:
+        record = client.get("ptc_export") or {}
+        path = ROOT / record["path"] if record.get("path") else None
+        if path and path.exists():
+            path.unlink()
+    folder = UPLOADS_DIR / client_id
+    if folder.is_dir() and not any(folder.iterdir()):
+        folder.rmdir()
+    update_client(client_id, ptc_export=None, ptc_taxonomy=None, ptc_narrative=None)
 
 
 def read_source(source: str) -> pd.DataFrame:
